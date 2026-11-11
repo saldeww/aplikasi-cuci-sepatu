@@ -1,22 +1,8 @@
-# Sprylo — Free HTML5 eCommerce Website Template
-
-#### Preview
-
- - [Demo](https://themewagon.github.io/Sprylo/)
-
-#### Download
- - [Download from ThemeWagon](https://themewagon.com/themes/sprylo/)
-
-## Getting Started
-
-Clone Repository
-```
-git clone https://github.com/themewagon/Sprylo.git
-```
+# Website Prototype Cuci Sepatu cucidisini
 
 ## Author 
 ```
-Design and code are completely written the HTML Design development team. 
+Syahrama Saldi - Ricky  Erlangga Handoko
 ```
 
 ## License
