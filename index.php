@@ -37,28 +37,9 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
         cuci disini
       </a>
       <a class="skip-link" href="#main">Skip to content</a>
-      <!-- <form class="search" role="search" onsubmit="event.preventDefault()">
-        <input
-          type="text"
-          placeholder="Cari layanan atau produk…"
-          aria-label="Cari di toko" />
-        <button type="submit" aria-label="Search">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
-        </button>
-      </form> -->
 
       <div class="icon-row">
-        <a href="login.php" class="icon-btn" aria-label="Account">
+        <a href="profile.php" class="icon-btn" aria-label="Account">
           <svg
             width="20"
             height="20"
@@ -87,7 +68,7 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
           <span class="count">3</span>
         </a>
         <a
-          href="pesanan.php"
+          href="keranjang.php"
           class="icon-btn icon-btn--cart"
           aria-label="Cart">
           <svg
@@ -138,7 +119,6 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
         <a href="layanan.php">Layanan</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
-        <a href="login.php">Login</a>
       </div>
     </div>
   </nav>
@@ -153,7 +133,6 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
     <a href="layanan.php">Layanan</a>
     <a href="pesanan.php">Pesanan</a>
     <a href="kontak.php">Kontak</a>
-    <a href="login.php">Login</a>
     <a
       href="pesanan.php"
       class="btn btn--indigo"

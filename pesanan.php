@@ -1,67 +1,542 @@
 <?php
-// Memuat data layanan dari file eksternal (jika ada) atau definisi array lokal
-if (file_exists('data_layanan.php')) {
-  require_once 'data_layanan.php';
-} else {
-  // Fallback data jika data_layanan.php belum dipanggil
-  $layanan_list = [
-    ["nama" => "Deep Cleaning", "harga_min" => 30000, "waktu" => "Pengerjaan 1-7 hari"],
-    ["nama" => "Bag Treatment", "harga_min" => 25000, "waktu" => "Pengerjaan 1-7 hari"],
-    ["nama" => "Helm Treatment", "harga_min" => 35000, "waktu" => "Pengerjaan 1-7 hari"],
-    ["nama" => "Sandals Treatment", "harga_min" => 25000, "waktu" => "Pengerjaan 1-7 hari"],
-    ["nama" => "Reglue", "harga_min" => 40000, "waktu" => "Pengerjaan 7 hari"],
-    ["nama" => "Shoe Repair", "harga_min" => 50000, "waktu" => "Pengerjaan 7 hari"]
-  ];
+session_start();
+
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/functions/helper.php';
+
+// Pastikan pengguna sudah login
+if (!isset($_SESSION['user_id'])) {
+  header('Location: login.php');
+  exit;
 }
 
-// Opsi durasi pengerjaan beserta biaya tambahan
-$opsi_hari = [
-  ["label" => "Reguler (3-7 Hari)", "biaya" => 0],
-  ["label" => "Express (2 Hari) - Tambah Rp 15.000", "biaya" => 15000],
-  ["label" => "Kilat (1 Hari / Sameday) - Tambah Rp 30.000", "biaya" => 30000]
-];
+$user_id = (int) $_SESSION['user_id'];
 
-// Penanganan submit form
-$success_message = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $nama        = isset($_POST['nama_lengkap']) ? htmlspecialchars($_POST['nama_lengkap']) : '';
-  $layanan_sel = isset($_POST['layanan']) ? htmlspecialchars($_POST['layanan']) : '';
-  $total       = isset($_POST['total_harga_input']) ? htmlspecialchars($_POST['total_harga_input']) : '0';
+// Ambil flash message
+$flash = $_SESSION['flash_pesanan'] ?? '';
+unset($_SESSION['flash_pesanan']);
 
-  $success_message = "Pesanan layanan <strong>$layanan_sel</strong> atas nama <strong>$nama</strong> berhasil dibuat! Total estimasi: <strong>Rp " . number_format((int)$total, 0, ',', '.') . "</strong>.";
+// Ambil pesanan pengguna
+$stmt = $conn->prepare("
+    SELECT
+        p.id,
+        p.no_pesanan,
+        p.nama_lengkap,
+        p.no_wa,
+        p.alamat_pengantaran,
+        p.total_harga,
+        p.status_pesanan,
+        p.status_pembayaran,
+        p.metode_pembayaran,
+        p.metode_pengantaran,
+        p.jadwal_pelaksanaan,
+        p.created_at,
+        d.id AS detail_id,
+        d.layanan_id,
+        d.nama_layanan_snapshot,
+        d.nama_varian_snapshot,
+        d.ukuran_snapshot,
+        d.addon_snapshot,
+        d.harga_satuan,
+        d.harga_dasar,
+        d.harga_tambahan,
+        d.jumlah,
+        d.subtotal,
+        l.gambar
+    FROM pesanan p
+    LEFT JOIN detail_pesanan d ON d.pesanan_id = p.id
+    LEFT JOIN layanan l ON l.id = d.layanan_id
+    WHERE p.user_id = ?
+    ORDER BY p.created_at DESC, p.id DESC
+");
+
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+$pesanan_list = [];
+
+while ($row = $result->fetch_assoc()) {
+  $id = (int) $row['id'];
+
+  if (!isset($pesanan_list[$id])) {
+    $pesanan_list[$id] = [
+      'id' => $id,
+      'no_pesanan' => $row['no_pesanan'],
+      'nama_lengkap' => $row['nama_lengkap'],
+      'no_wa' => $row['no_wa'],
+      'alamat_pengantaran' => $row['alamat_pengantaran'],
+      'total_harga' => $row['total_harga'],
+      'status_pesanan' => $row['status_pesanan'],
+      'status_pembayaran' => $row['status_pembayaran'],
+      'metode_pembayaran' => $row['metode_pembayaran'],
+      'metode_pengantaran' => $row['metode_pengantaran'],
+      'jadwal_pelaksanaan' => $row['jadwal_pelaksanaan'],
+      'created_at' => $row['created_at'],
+      'detail' => []
+    ];
+  }
+
+  if ($row['detail_id'] !== null) {
+    $snapshot = json_decode($row['addon_snapshot'] ?? '', true);
+
+    if (!is_array($snapshot)) {
+      $snapshot = [];
+    }
+
+    $addons = $snapshot['addons'] ?? [];
+
+    if (!is_array($addons)) {
+      $addons = [];
+    }
+
+    $pesanan_list[$id]['detail'][] = [
+      'detail_id' => (int) $row['detail_id'],
+      'nama_layanan' => $row['nama_layanan_snapshot'] ?: 'Layanan tidak tersedia',
+      'gambar' => $row['gambar'],
+      'varian' => $row['nama_varian_snapshot'] ?? '',
+      'ukuran' => $row['ukuran_snapshot'] ?? '',
+      'addons' => $addons,
+      'catatan' => $snapshot['catatan'] ?? '',
+      'harga_dasar' => $row['harga_dasar'],
+      'harga_tambahan' => $row['harga_tambahan'],
+      'harga_satuan' => $row['harga_satuan'],
+      'jumlah' => $row['jumlah'],
+      'subtotal' => $row['subtotal']
+    ];
+  }
 }
+
+$stmt->close();
+
+$filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 ?>
-<!doctype html>
+
+
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pesan Layanan | Cuci Disini</title>
-  <meta
-    name="description"
-    content="Form pemesanan online layanan perawatan sepatu, tas, helm, dan aksesoris di Cuci Disini." />
-  <meta name="theme-color" content="#4F46E5" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" />
-  <link rel="stylesheet" href="assets/css/styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesanan Saya | Cuci Disini</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+
+
+  <style>
+    /* ===== ORDER PAGE ===== */
+
+    .orders-page {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+
+    .orders-heading {
+      margin-bottom: 28px;
+    }
+
+    .orders-heading p {
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    /* Order card */
+
+    .order-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 22px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .order-card:hover {
+      border-color: #c7d2fe;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+    }
+
+    .order-card.is-new {
+      border: 2px solid #4f46e5;
+      box-shadow: 0 8px 25px rgba(79, 70, 229, .08);
+    }
+
+    /* Header */
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .order-number {
+      font-size: 16px;
+      font-weight: 800;
+      color: #111827;
+      overflow-wrap: anywhere;
+    }
+
+    .order-date {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .order-statuses {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status.danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status.info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* Section title */
+
+    .order-section-title {
+      font-size: 16px;
+      font-weight: 750;
+      margin: 22px 0 12px;
+      color: #111827;
+    }
+
+    /* Service items */
+
+    .order-detail {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      padding: 17px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .order-detail:last-child {
+      border-bottom: 0;
+    }
+
+    .order-product-image {
+      width: 76px;
+      height: 76px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #f3f4f6;
+    }
+
+    .order-product-placeholder {
+      width: 76px;
+      height: 76px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #f3f4f6;
+      color: #9ca3af;
+      font-size: 25px;
+    }
+
+    .order-product-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .order-product-name {
+      font-weight: 750;
+      color: #111827;
+    }
+
+    .order-product-meta {
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 5px;
+    }
+
+    .order-product-note {
+      margin-top: 8px;
+      padding: 9px 11px;
+      background: #f9fafb;
+      border-radius: 9px;
+      color: #4b5563;
+      font-size: 12px;
+    }
+
+    .order-product-price {
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 750;
+      color: #111827;
+    }
+
+    .order-product-price small {
+      display: block;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 400;
+      margin-top: 5px;
+    }
+
+    /* Information */
+
+    .order-info {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 22px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 13px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-item small {
+      display: block;
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .info-item strong {
+      display: block;
+      color: #111827;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+    }
+
+    /* Total */
+
+    .order-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid #e5e7eb;
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .order-total strong {
+      color: #4f46e5;
+      font-size: 20px;
+    }
+
+    /* Success message */
+
+    .order-success {
+      padding: 15px 18px;
+      border-radius: 12px;
+      background: #dcfce7;
+      color: #166534;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Empty state */
+
+    .empty-orders {
+      background: #fff;
+      padding: 55px 20px;
+      border-radius: 18px;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+    }
+
+    .empty-orders-icon {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 28px;
+      margin: 0 auto 18px;
+    }
+
+    .empty-orders h2 {
+      margin-bottom: 8px;
+    }
+
+    .empty-orders p {
+      color: #6b7280;
+      margin-bottom: 20px;
+    }
+
+    /* Responsive */
+
+    @media (max-width: 600px) {
+      .order-card {
+        padding: 17px;
+        border-radius: 14px;
+      }
+
+      .order-header {
+        flex-direction: column;
+      }
+
+      .order-info {
+        grid-template-columns: 1fr;
+        padding: 15px;
+        gap: 15px;
+      }
+
+      .order-detail {
+        gap: 10px;
+      }
+
+      .order-product-image,
+      .order-product-placeholder {
+        width: 60px;
+        height: 60px;
+      }
+
+      .order-product-price {
+        font-size: 13px;
+      }
+
+      .order-total {
+        font-size: 15px;
+      }
+
+      .order-total strong {
+        font-size: 18px;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+
   <header class="site-header">
     <div class="container">
-      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
-      <button class="nav-toggle" aria-label="Open menu">≡</button>
+      <a href="index.php" class="brand">
+        <span class="brand-mark">C</span>
+        cuci disini
+      </a>
+      <a class="skip-link" href="#main">Skip to content</a>
+      <!-- <form class="search" role="search" onsubmit="event.preventDefault()">
+        <input
+          type="text"
+          placeholder="Cari layanan atau produk…"
+          aria-label="Cari di toko" />
+        <button type="submit" aria-label="Search">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+        </button>
+      </form> -->
+
+      <div class="icon-row">
+        <a href="login.php" class="icon-btn" aria-label="Account">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
+          </svg>
+        </a>
+        <a href="#" class="icon-btn" aria-label="Wishlist">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <path
+              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span class="count">3</span>
+        </a>
+        <a
+          href="keranjang.php"
+          class="icon-btn icon-btn--cart"
+          aria-label="Cart">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z" />
+            <path d="M4 7h16" />
+            <path d="M16 11a4 4 0 0 1-8 0" />
+          </svg>
+          <span class="count">2</span>
+        </a>
+        <button
+          class="nav-toggle"
+          aria-label="Open menu"
+          aria-expanded="false">
+          ≡
+        </button>
+      </div>
     </div>
   </header>
-
   <nav class="nav-bar" aria-label="Primary">
     <div class="container">
-      <a href="layanan.php" class="all-cats"><svg
+      <a href="layanan.php" class="all-cats">
+        <svg
           width="16"
           height="16"
           viewBox="0 0 24 24"
@@ -72,247 +547,321 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>Semua Kategori</a>
+        </svg>
+        Semua Kategori
+      </a>
       <div class="main-nav">
-        <a href="index.php">Home</a>
+        <a href="index.php" aria-current="page">Home</a>
         <a href="layanan.php">Layanan</a>
-        <a href="pesan.php" aria-current="page">Pesanan</a>
+        <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
         <a href="login.php">Login</a>
       </div>
     </div>
   </nav>
 
-  <div class="drawer" id="drawer" aria-hidden="true">
-    <div class="drawer-head">
-      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a><button class="drawer-close">Close ✕</button>
+  <main class="section">
+    <div class="container orders-page">
+
+      <div class="crumbs">
+        <a href="index.php">Home</a>
+        <span class="sep">›</span>
+        <span>Pesanan Saya</span>
+      </div>
+
+      <div class="orders-heading">
+        <h1>Pesanan Saya</h1>
+        <p>Pantau pesanan, rincian layanan, dan status pembayaran kamu.</p>
+      </div>
+
+      <?php if ($flash !== ''): ?>
+        <div class="order-success">
+          <span>✓</span>
+          <strong><?= e($flash) ?></strong>
+        </div>
+      <?php endif; ?>
+
+      <?php if (empty($pesanan_list)): ?>
+
+        <div class="empty-orders">
+
+          <div class="empty-orders-icon">🧺</div>
+
+          <h2>Belum Ada Pesanan</h2>
+
+          <p>
+            Sepertinya kamu belum punya transaksi.
+            Yuk, temukan layanan yang cocok untuk barangmu.
+          </p>
+
+          <a href="layanan.php" class="btn">
+            Jelajahi Layanan
+          </a>
+
+        </div>
+
+      <?php else: ?>
+
+        <?php foreach ($pesanan_list as $pesanan): ?>
+
+          <?php
+          $is_new_order = (
+            $filter_id > 0 &&
+            $filter_id === $pesanan['id']
+          );
+
+          $status_pesanan = strtolower(
+            trim($pesanan['status_pesanan'])
+          );
+
+          $status_pembayaran = strtolower(
+            trim($pesanan['status_pembayaran'])
+          );
+
+          $status_pesanan_class = 'status';
+
+          if ($status_pesanan === 'pending') {
+            $status_pesanan_class .= ' pending';
+          } elseif (
+            in_array($status_pesanan, ['selesai', 'completed'], true)
+          ) {
+            $status_pesanan_class .= ' success';
+          } elseif (
+            in_array($status_pesanan, ['dibatalkan', 'cancelled'], true)
+          ) {
+            $status_pesanan_class .= ' danger';
+          }
+
+          $status_bayar_class = 'status';
+
+          if (
+            in_array($status_pembayaran, ['paid', 'lunas', 'berhasil'], true)
+          ) {
+            $status_bayar_class .= ' success';
+          } elseif (
+            in_array($status_pembayaran, ['unpaid', 'belum dibayar'], true)
+          ) {
+            $status_bayar_class .= ' pending';
+          } elseif (
+            in_array($status_pembayaran, ['failed', 'gagal'], true)
+          ) {
+            $status_bayar_class .= ' danger';
+          }
+
+          $jumlah_item = count($pesanan['detail']);
+          ?>
+
+          <article
+            class="order-card <?= $is_new_order ? 'is-new' : '' ?>"
+            id="pesanan-<?= $pesanan['id'] ?>">
+
+            <!-- HEADER PESANAN -->
+            <div class="order-header">
+
+              <div>
+                <div class="order-number">
+                  <?= e($pesanan['no_pesanan']) ?>
+                </div>
+
+                <div class="order-date">
+                  Dipesan pada
+                  <?= date(
+                    'd M Y, H:i',
+                    strtotime($pesanan['created_at'])
+                  ) ?>
+                </div>
+              </div>
+
+              <div class="order-statuses">
+
+                <span class="<?= $status_pesanan_class ?>">
+                  <?= e($pesanan['status_pesanan']) ?>
+                </span>
+
+                <span class="<?= $status_bayar_class ?>">
+                  <?= e($pesanan['status_pembayaran']) ?>
+                </span>
+
+              </div>
+
+            </div>
+
+            <!-- RINCIAN LAYANAN -->
+            <h3 class="order-section-title">
+              Rincian Pesanan
+              <span style="color:#9ca3af;font-weight:400;font-size:13px;">
+                (<?= $jumlah_item ?> item)
+              </span>
+            </h3>
+
+            <?php foreach ($pesanan['detail'] as $detail): ?>
+
+              <div class="order-detail">
+
+                <?php if (!empty($detail['gambar'])): ?>
+
+                  <img
+                    src="<?= e($detail['gambar']) ?>"
+                    alt="<?= e($detail['nama_layanan']) ?>"
+                    class="order-product-image"
+                    loading="lazy">
+
+                <?php else: ?>
+
+                  <div class="order-product-placeholder">
+                    🧼
+                  </div>
+
+                <?php endif; ?>
+
+                <div class="order-product-info">
+
+                  <div class="order-product-name">
+                    <?= e($detail['nama_layanan']) ?>
+                  </div>
+
+                  <div class="order-product-meta">
+
+                    <?php if ($detail['varian'] !== ''): ?>
+                      <div>
+                        Varian: <?= e($detail['varian']) ?>
+                      </div>
+                    <?php endif; ?>
+
+                    <?php if ($detail['ukuran'] !== ''): ?>
+                      <div>
+                        Ukuran: <?= e($detail['ukuran']) ?>
+                      </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($detail['addons'])): ?>
+                      <div>
+                        Addon:
+                        <?php
+                        $addon_names = [];
+
+                        foreach ($detail['addons'] as $addon) {
+                          if (!empty($addon['nama'])) {
+                            $addon_names[] = $addon['nama'];
+                          }
+                        }
+
+                        echo e(implode(', ', $addon_names));
+                        ?>
+                      </div>
+                    <?php endif; ?>
+
+                    <div>
+                      <?= (int) $detail['jumlah'] ?> ×
+                      <?= rupiah($detail['harga_satuan']) ?>
+                    </div>
+
+                  </div>
+
+                  <?php if ($detail['catatan'] !== ''): ?>
+                    <div class="order-product-note">
+                      <strong>Catatan:</strong>
+                      <?= e($detail['catatan']) ?>
+                    </div>
+                  <?php endif; ?>
+
+                </div>
+
+                <div class="order-product-price">
+
+                  <?= rupiah($detail['subtotal']) ?>
+
+                  <small>Subtotal</small>
+
+                </div>
+
+              </div>
+
+            <?php endforeach; ?>
+
+            <!-- INFORMASI PESANAN -->
+            <h3 class="order-section-title">
+              Informasi Pesanan
+            </h3>
+
+            <div class="order-info">
+
+              <div class="info-item">
+                <small>Nama Pelanggan</small>
+                <strong>
+                  <?= e($pesanan['nama_lengkap']) ?>
+                </strong>
+              </div>
+
+              <div class="info-item">
+                <small>Nomor WhatsApp</small>
+                <strong>
+                  <?= e($pesanan['no_wa']) ?>
+                </strong>
+              </div>
+
+              <div class="info-item">
+                <small>Metode Pengantaran</small>
+                <strong>
+                  <?= e($pesanan['metode_pengantaran']) ?>
+                </strong>
+              </div>
+
+              <div class="info-item">
+                <small>Jadwal Pelaksanaan</small>
+                <strong>
+                  <?= date(
+                    'd M Y, H:i',
+                    strtotime($pesanan['jadwal_pelaksanaan'])
+                  ) ?>
+                </strong>
+              </div>
+
+              <div class="info-item">
+                <small>Metode Pembayaran</small>
+                <strong>
+                  <?= e($pesanan['metode_pembayaran']) ?>
+                </strong>
+              </div>
+
+              <div class="info-item">
+                <small>Status Pembayaran</small>
+                <strong>
+                  <?= e($pesanan['status_pembayaran']) ?>
+                </strong>
+              </div>
+
+              <div class="info-item" style="grid-column:1/-1;">
+                <small>Alamat Pengantaran</small>
+                <strong>
+                  <?= nl2br(e($pesanan['alamat_pengantaran'])) ?>
+                </strong>
+              </div>
+
+            </div>
+
+            <!-- TOTAL -->
+            <div class="order-total">
+
+              <span>Total Pembayaran</span>
+
+              <strong>
+                <?= rupiah($pesanan['total_harga']) ?>
+              </strong>
+
+            </div>
+
+          </article>
+
+        <?php endforeach; ?>
+
+      <?php endif; ?>
+
     </div>
-    <a href="index.php">Home</a>
-    <a href="layanan.php">Layanan</a>
-    <a href="pesan.php">Pesanan</a>
-    <a href="kontak.php">Kontak</a>
-  </div>
-
-  <main id="main">
-    <section class="page-head">
-      <div class="container">
-        <div class="crumbs">
-          <a href="index.php">Home</a> <span class="sep">›</span>
-          <span>Form Pemesanan</span>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="container">
-        <div class="contact-grid">
-          <div class="contact-info">
-            <div
-              style="
-                  margin-top: var(--s7);
-                  padding: var(--s6);
-                  background: linear-gradient(
-                    135deg,
-                    var(--indigo),
-                    var(--card-purple)
-                  );
-                  color: var(--paper);
-                  border-radius: var(--r-lg);
-                  position: relative;
-                  overflow: hidden;
-                ">
-              <div
-                style="
-                    position: absolute;
-                    inset: 0;
-                    background-image: radial-gradient(
-                      circle at 80% 20%,
-                      rgba(255, 255, 255, 0.18) 0,
-                      transparent 40%
-                    );
-                    pointer-events: none;
-                  "></div>
-              <div style="position: relative">
-                <h3
-                  style="
-                      color: var(--paper);
-                      font-size: var(--text-xl);
-                      margin-bottom: var(--s3);
-                    ">
-                  Layanan Antar-Jemput Gratis
-                </h3>
-                <p
-                  style="
-                      color: rgba(255, 255, 255, 0.85);
-                      font-size: var(--text-sm);
-                      line-height: 1.6;
-                      margin-bottom: var(--s4);
-                    ">
-                  Isi form di samping dan kurir kami akan menjemput sepatu, tas, atau helm Anda langsung ke lokasi.
-                </p>
-                <a href="kontak.php" class="btn btn--paper">Tanya CS via Whatsapp →</a>
-              </div>
-            </div>
-          </div>
-
-          <form class="contact-form" action="pesan.php" method="POST" id="orderForm">
-            <h2 style="font-size: var(--text-xl); margin-bottom: var(--s2)">
-              Form Pemesanan Layanan
-            </h2>
-            <p
-              style="
-                  color: var(--fg-soft);
-                  font-size: var(--text-sm);
-                  margin-bottom: var(--s5);
-                ">
-              Pilih jenis perawatan, estimasi hari, dan masukkan data penjemputan Anda.
-            </p>
-
-            <?php if (!empty($success_message)): ?>
-              <div style="padding: 12px; background: #d1fae5; color: #065f46; border-radius: 6px; margin-bottom: 16px; font-size: 14px;">
-                <?php echo $success_message; ?>
-              </div>
-            <?php endif; ?>
-
-            <div class="field-row">
-              <div class="field">
-                <label for="nama_lengkap">Nama Lengkap</label>
-                <input id="nama_lengkap" name="nama_lengkap" type="text" required placeholder="Masukkan nama lengkap..." />
-              </div>
-              <div class="field">
-                <label for="phone">Nomor WhatsApp</label>
-                <input id="phone" name="phone" type="tel" required placeholder="0812xxxxxxxx" />
-              </div>
-            </div>
-
-            <div class="field-row">
-              <div class="field">
-                <label for="layanan">Pilih Jenis Layanan</label>
-                <select id="layanan" name="layanan" required style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color, #ccc);">
-                  <option value="" data-harga="0">-- Pilih Layanan --</option>
-                  <?php foreach ($layanan_list as $item):
-                    $harga_dasar = isset($item['harga_min']) ? $item['harga_min'] : 30000;
-                  ?>
-                    <option value="<?php echo htmlspecialchars($item['nama']); ?>" data-harga="<?php echo $harga_dasar; ?>">
-                      <?php echo htmlspecialchars($item['nama']); ?> (Mulai Rp <?php echo number_format($harga_dasar, 0, ',', '.'); ?>)
-                    </option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-
-              <div class="field">
-                <label for="durasi_hari">Estimasi Waktu Pengerjaan</label>
-                <select id="durasi_hari" name="durasi_hari" required style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color, #ccc);">
-                  <?php foreach ($opsi_hari as $opsi): ?>
-                    <option value="<?php echo htmlspecialchars($opsi['label']); ?>" data-biaya="<?php echo $opsi['biaya']; ?>">
-                      <?php echo htmlspecialchars($opsi['label']); ?>
-                    </option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="jumlah">Jumlah Pasang / Unit</label>
-              <input id="jumlah" name="jumlah" type="number" min="1" value="1" required />
-            </div>
-
-            <div class="field">
-              <label for="alamat">Alamat Penjemputan & Pengantaran</label>
-              <textarea
-                id="alamat"
-                name="alamat"
-                required
-                placeholder="Tuliskan alamat lengkap lokasi penjemputan barang..."></textarea>
-            </div>
-
-            <!-- Rincian Hitung Total Otomatis -->
-            <div style="background: var(--bg-soft, #f8fafc); padding: 16px; border-radius: 8px; margin-top: 16px; border: 1px solid #e2e8f0;">
-              <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: var(--text-base); color: var(--indigo);">
-                <span>Estimasi Total Biaya:</span>
-                <span id="display_total">Rp 0</span>
-              </div>
-              <input type="hidden" name="total_harga_input" id="total_harga_input" value="0" />
-            </div>
-
-            <button
-              class="btn btn--indigo btn--block"
-              type="submit"
-              style="
-                  padding: 16px;
-                  font-size: var(--text-base);
-                  margin-top: var(--s4);
-                ">
-              Kirim Pesanan Sekarang →
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="mark">
-            <span class="brand-mark">C</span> Cuci Disini
-          </div>
-          <p>Cuci tas sepatu semuanya disini, Sejak 2025</p>
-        </div>
-        <div class="footer-col">
-          <h4>Bantuan</h4>
-          <ul>
-            <li><a href="#">Akun Saya</a></li>
-            <li><a href="pesan.php">Pesanan Saya</a></li>
-            <li><a href="#">Pusat Bantuan</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Tentang Kami</h4>
-          <ul>
-            <li><a href="#">Tentang Kami</a></li>
-            <li><a href="kontak.php">Kontak</a></li>
-            <li><a href="login.php">Login / Register</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <span>© <?php echo date('Y'); ?> Cuci Disini. All rights reserved.</span>
-      </div>
-    </div>
-  </footer>
 
   <script src="assets/js/main.js" defer></script>
-
-  <!-- Script JavaScript untuk Perhitungan Otomatis -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const selectLayanan = document.getElementById('layanan');
-      const selectDurasi = document.getElementById('durasi_hari');
-      const inputJumlah = document.getElementById('jumlah');
-      const displayTotal = document.getElementById('display_total');
-      const inputTotalHidden = document.getElementById('total_harga_input');
-
-      function hitungTotal() {
-        const optLayanan = selectLayanan.options[selectLayanan.selectedIndex];
-        const optDurasi = selectDurasi.options[selectDurasi.selectedIndex];
-
-        const hargaLayanan = parseFloat(optLayanan.getAttribute('data-harga')) || 0;
-        const biayaExpress = parseFloat(optDurasi.getAttribute('data-biaya')) || 0;
-        const jumlah = parseInt(inputJumlah.value) || 1;
-
-        const total = (hargaLayanan + biayaExpress) * jumlah;
-
-        displayTotal.textContent = 'Rp ' + total.toLocaleString('id-ID');
-        inputTotalHidden.value = total;
-      }
-
-      selectLayanan.addEventListener('change', hitungTotal);
-      selectDurasi.addEventListener('change', hitungTotal);
-      inputJumlah.addEventListener('input', hitungTotal);
-    });
-  </script>
 </body>
 
 </html>

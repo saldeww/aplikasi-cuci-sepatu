@@ -1,10 +1,12 @@
 <?php
+session_start();
+
 require_once 'config/database.php';
 
-// ==========================================
-// PENGATURAN FILTER
-// ==========================================
-
+// Buat token CSRF jika belum tersedia
+if (empty($_SESSION['csrf_token'])) {
+  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 $sort_by = $_GET['sort'] ?? 'popular';
 $keyword = trim($_GET['q'] ?? '');
 $category_id = isset($_GET['category'])
@@ -209,7 +211,7 @@ function e($value)
           <span class="count">3</span>
         </a>
         <a
-          href="pesanan.php"
+          href="keranjang.php"
           class="icon-btn icon-btn--cart"
           aria-label="Cart">
           <svg
@@ -555,13 +557,24 @@ function e($value)
 
                     <!-- Order Button -->
 
-                    <a
-                      href="product.php?id=<?php echo (int) $layanan['id']; ?>"
-                      class="btn">
 
-                      Lihat Detail →
+                    <form action="keranjang.php" method="POST">
+                      <input type="hidden" name="csrf_token"
+                        value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
-                    </a>
+                      <input type="hidden" name="action" value="add">
+
+                      <input type="hidden" name="layanan_id"
+                        value="<?= (int) $layanan['id'] ?>">
+
+                      <input type="hidden" name="jumlah" value="1">
+
+                      <button type="submit" class="btn">
+                        <span>Tambah ke Keranjang</span>
+                        <span aria-hidden="true">＋</span>
+                      </button>
+                    </form>
+
 
                   </article>
 
