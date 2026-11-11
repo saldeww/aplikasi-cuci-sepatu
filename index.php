@@ -12,10 +12,10 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cuci Disini | Laundry Sepatu dan Barang Pribadi</title>
+    <title>Cuci Disini | Laundry Sepatu dan Barang Pribadi Test</title>
     <meta
       name="description"
-      content="Layanan laundry dan perawatan sepatu serta barang pribadi cepat, bersih, dan profesional."
+      content="Layanan laundry dan perawatan sepatu serta barang pribadi cepat, bersih, dan profesional. Test"
     />
     <meta name="theme-color" content="#4F46E5" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
