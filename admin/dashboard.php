@@ -641,7 +641,7 @@ function statusClass($status)
                     <span class="stat-icon">💰</span>
                 </div>
                 <div class="stat-value" style="font-size:20px">
-                    <?= rupiah($total_transaksi) ?>
+                    <?= formatRupiah($total_transaksi) ?>
                 </div>
                 <div class="stat-description">Akumulasi seluruh pesanan, bukan hanya pembayaran lunas</div>
             </div>
@@ -721,7 +721,7 @@ function statusClass($status)
                                     <td><strong><?= e($item['no_pesanan']) ?></strong></td>
                                     <td><?= e($item['nama_lengkap']) ?></td>
                                     <td><?= date('d M Y, H:i', strtotime($item['created_at'])) ?></td>
-                                    <td><strong><?= rupiah($item['total_harga']) ?></strong></td>
+                                    <td><strong><?= formatRupiah($item['total_harga']) ?></strong></td>
                                     <td>
                                         <span class="badge <?= statusClass($item['status_pesanan']) ?>">
                                             <?= e($item['status_pesanan']) ?>

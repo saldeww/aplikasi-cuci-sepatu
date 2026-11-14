@@ -670,7 +670,7 @@ function layananBadgeClass($status)
 
                                     <td><?= e($item['nama_kategori'] ?? 'Tanpa kategori') ?></td>
 
-                                    <td class="price"><?= rupiah($item['harga']) ?></td>
+                                    <td class="price"><?= formatRupiah($item['harga']) ?></td>
 
                                     <td><?= e($item['waktu'] ?: '-') ?></td>
 

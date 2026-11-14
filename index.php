@@ -2,6 +2,7 @@
 
 // 1. Panggil data dari file eksternal
 require_once 'config/database.php';
+require_once 'functions/helper.php';
 
 
 //2. Opsional: Ambil 4 layanan pertama saja jika ingin menampilkan "Layanan Unggulan" di Home
@@ -225,10 +226,7 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
                   stroke-linejoin="round" />
               </svg>
             </a>
-            <img
-              class="product"
-              src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80&auto=format&fit=crop"
-              alt="Fast Clean" />
+
           </article>
 
           <div class="bento-row">
@@ -350,10 +348,10 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
 
               <a href="layanan.php" class="name"><?= htmlspecialchars($item['nama']) ?></a>
               <div class="price">
-                <span class="now"><?= htmlspecialchars($item['harga']) ?></span>
+                <span class="now"><?= formatRupiah($item['harga']) ?></span>
               </div>
 
-              <a href="pesanan.php" class="btn">Pesan Sekarang →</a>
+              <a href="layanan.php" class="btn">Pesan Sekarang →</a>
             </article>
           <?php endforeach; ?>
         </div>

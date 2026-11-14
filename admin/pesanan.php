@@ -717,7 +717,7 @@ function adminStatusClass($status)
                                     <td><strong><?= e($p['no_pesanan']) ?></strong></td>
                                     <td><?= e($p['nama_lengkap']) ?></td>
                                     <td><?= date('d M Y H:i', strtotime($p['created_at'])) ?></td>
-                                    <td><strong><?= rupiah($p['total_harga']) ?></strong></td>
+                                    <td><strong><?= formatRupiah($p['total_harga']) ?></strong></td>
                                     <td>
                                         <span class="badge <?= adminStatusClass($p['status_pesanan']) ?>">
                                             <?= e($p['status_pesanan']) ?>
@@ -843,19 +843,19 @@ function adminStatusClass($status)
 
                                 <small>
                                     <?= (int) $item['jumlah'] ?> ×
-                                    <?= rupiah($item['harga_satuan']) ?>
+                                    <?= formatRupiah($item['harga_satuan']) ?>
                                 </small>
                             </div>
 
                             <div class="item-price">
-                                <?= rupiah($item['subtotal']) ?>
+                                <?= formatRupiah($item['subtotal']) ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
 
                     <div class="total-row">
                         <span>Total pembayaran</span>
-                        <strong><?= rupiah($pesanan_detail['total_harga']) ?></strong>
+                        <strong><?= formatRupiah($pesanan_detail['total_harga']) ?></strong>
                     </div>
 
                     <div class="update-box">

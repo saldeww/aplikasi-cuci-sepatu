@@ -276,7 +276,6 @@ $total_layanan = count($layanan_list);
         <a href="layanan.php" aria-current="page">Layanan</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
-        <a href="tracking.php">Tracking Pesanan</a>
         <a href="login.php">Login</a>
       </div>
 
@@ -308,7 +307,6 @@ $total_layanan = count($layanan_list);
     <a href="layanan.php">Layanan</a>
     <a href="pesanan.php">Pesanan</a>
     <a href="kontak.php">Kontak</a>
-    <a href="tracking.php">Tracking Pesanan</a>
     <a href="login.php">Login</a>
 
   </div>

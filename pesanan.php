@@ -753,7 +753,7 @@ $filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
                     <div>
                       <?= (int) $detail['jumlah'] ?> ×
-                      <?= rupiah($detail['harga_satuan']) ?>
+                      <?= formatRupiah($detail['harga_satuan']) ?>
                     </div>
 
                   </div>
@@ -769,7 +769,7 @@ $filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
                 <div class="order-product-price">
 
-                  <?= rupiah($detail['subtotal']) ?>
+                  <?= formatRupiah($detail['subtotal']) ?>
 
                   <small>Subtotal</small>
 
@@ -846,7 +846,7 @@ $filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
               <span>Total Pembayaran</span>
 
               <strong>
-                <?= rupiah($pesanan['total_harga']) ?>
+                <?= formatRupiah($pesanan['total_harga']) ?>
               </strong>
 
             </div>
