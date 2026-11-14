@@ -77,6 +77,78 @@ if ($cart_invalid && $error === '') {
             z-index: 1;
         }
 
+        .map-search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .map-search input {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        .map-search button {
+            padding: 0 18px;
+            border: none;
+            border-radius: 9px;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .map-search button:hover {
+            background: #1d4ed8;
+        }
+
+        .map-search button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .map-results {
+            display: none;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .map-result {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-bottom: 1px solid #eee;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .map-result:last-child {
+            border-bottom: none;
+        }
+
+        .map-result:hover {
+            background: #f3f4f6;
+        }
+
+        .map-result small {
+            display: block;
+            margin-top: 4px;
+            color: #6b7280;
+        }
+
+        .map-search-status {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 5px 0 10px;
+        }
+
         .checkout-layout {
             display: grid;
             grid-template-columns: 1.5fr 1fr;
@@ -216,8 +288,25 @@ if ($cart_invalid && $error === '') {
                                 Geser pin merah pada peta atau klik lokasi Anda untuk mengisi alamat secara otomatis. (Luar Sukabumi dikenakan tambahan ongkir Rp 15.000).
                             </p>
 
-                            <div id="map"></div>
+                            <div class="map-search">
+                                <input
+                                    type="search"
+                                    id="map-search-input"
+                                    placeholder="Cari alamat, jalan, atau tempat..."
+                                    autocomplete="off">
 
+                                <button type="button" id="map-search-button">
+                                    Cari
+                                </button>
+                            </div>
+
+                            <div id="map-search-status" class="map-search-status">
+                                Cari lokasi atau pilih titik langsung pada peta.
+                            </div>
+
+                            <div id="map-results" class="map-results"></div>
+
+                            <div id="map"></div>
                             <textarea
                                 id="alamat_pengantaran"
                                 name="alamat_pengantaran"
@@ -428,6 +517,120 @@ if ($cart_invalid && $error === '') {
                     timeout: 10000
                 });
             }
+            // ======================================
+            // FITUR PENCARIAN LOKASI PETA
+            // ======================================
+
+            const searchInput = document.getElementById('map-search-input');
+            const searchButton = document.getElementById('map-search-button');
+            const searchResults = document.getElementById('map-results');
+            const searchStatus = document.getElementById('map-search-status');
+
+            async function cariLokasi() {
+                const keyword = searchInput.value.trim();
+
+                if (keyword.length < 3) {
+                    searchStatus.textContent = 'Masukkan minimal 3 karakter.';
+                    searchResults.style.display = 'none';
+                    return;
+                }
+
+                searchButton.disabled = true;
+                searchButton.textContent = 'Mencari...';
+                searchStatus.textContent = 'Sedang mencari lokasi...';
+                searchResults.style.display = 'none';
+
+                try {
+                    const params = new URLSearchParams({
+                        q: keyword,
+                        format: 'jsonv2',
+                        addressdetails: '1',
+                        limit: '5',
+                        countrycodes: 'id'
+                    });
+
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+                            headers: {
+                                'Accept-Language': 'id'
+                            }
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Gagal menghubungi layanan pencarian.');
+                    }
+
+                    const data = await response.json();
+
+                    searchResults.innerHTML = '';
+
+                    if (!data.length) {
+                        searchStatus.textContent = 'Lokasi tidak ditemukan. Coba kata kunci lain.';
+                        return;
+                    }
+
+                    searchStatus.textContent = `${data.length} lokasi ditemukan. Pilih salah satu:`;
+                    searchResults.style.display = 'block';
+
+                    data.forEach(function(location) {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'map-result';
+
+                        const title = document.createElement('strong');
+                        title.textContent = location.name || location.display_name.split(',')[0];
+
+                        const description = document.createElement('small');
+                        description.textContent = location.display_name;
+
+                        button.appendChild(title);
+                        button.appendChild(description);
+
+                        button.addEventListener('click', function() {
+                            const lat = parseFloat(location.lat);
+                            const lng = parseFloat(location.lon);
+
+                            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                                return;
+                            }
+
+                            // Pindahkan peta dan pin.
+                            map.setView([lat, lng], 17);
+                            marker.setLatLng([lat, lng]);
+
+                            // Isi alamat berdasarkan hasil pencarian.
+                            const textarea = document.getElementById('alamat_pengantaran');
+                            textarea.value = location.display_name;
+
+                            // Hitung ulang biaya pengantaran.
+                            cekBiayaPengantaran(textarea.value);
+
+                            searchInput.value = location.name || location.display_name;
+                            searchResults.style.display = 'none';
+                            searchStatus.textContent = 'Lokasi berhasil dipilih. Kamu bisa menggeser pin untuk menyesuaikan posisi.';
+                        });
+
+                        searchResults.appendChild(button);
+                    });
+
+                } catch (error) {
+                    console.error('Pencarian lokasi gagal:', error);
+                    searchStatus.textContent = 'Pencarian gagal. Periksa koneksi internet dan coba lagi.';
+                } finally {
+                    searchButton.disabled = false;
+                    searchButton.textContent = 'Cari';
+                }
+            }
+
+            searchButton.addEventListener('click', cariLokasi);
+
+            searchInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    cariLokasi();
+                }
+            });
 
             // Jalankan cek awal jika textarea sudah terisi nilai sebelumnya
             const initialAlamat = document.getElementById('alamat_pengantaran').value;
