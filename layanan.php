@@ -2,6 +2,7 @@
 session_start();
 
 require_once 'config/database.php';
+require_once 'functions/helper.php';
 
 // Buat token CSRF jika belum tersedia
 if (empty($_SESSION['csrf_token'])) {
@@ -31,10 +32,10 @@ $order_by = $sort_options[$sort_by];
 // FUNGSI FORMAT RUPIAH
 // ==========================================
 
-function formatRupiah($harga)
-{
-  return 'Rp ' . number_format((float) $harga, 0, ',', '.');
-}
+// function formatRupiah($harga)
+// {
+//   return 'Rp ' . number_format((float) $harga, 0, ',', '.');
+// }
 
 
 // ==========================================
@@ -112,16 +113,6 @@ mysqli_stmt_close($stmt);
 // ==========================================
 
 $total_layanan = count($layanan_list);
-
-
-// ==========================================
-// HELPER HTML
-// ==========================================
-
-function e($value)
-{
-  return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
 
 ?>
 

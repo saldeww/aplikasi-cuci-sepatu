@@ -321,9 +321,9 @@ if ($cart_invalid && $error === '') {
                                             <small>
                                                 <?= e($item['nama_varian'] ?? 'Varian belum dipilih') ?>
 
-                                                <?php if (!empty($item['durasi_label'])): ?>
+                                                <!-- <?php if (!empty($item['durasi_label'])): ?>
                                                     · <?= e($item['durasi_label']) ?>
-                                                <?php endif; ?>
+                                                <?php endif; ?> -->
                                             </small>
                                         </div>
 
@@ -339,7 +339,7 @@ if ($cart_invalid && $error === '') {
                                             <div>
                                                 <small>
                                                     + <?= e($addon['nama_addon']) ?>
-                                                    (<?= rupiah($addon['harga_snapshot']) ?>)
+                                                    (<?= formatRupiah($addon['harga_snapshot']) ?>)
                                                 </small>
                                             </div>
                                         <?php endforeach; ?>
@@ -355,14 +355,14 @@ if ($cart_invalid && $error === '') {
                                         <div style="margin-top: 7px;">
                                             <small>
                                                 <?= (int) $item['jumlah'] ?> ×
-                                                <?= rupiah($item['harga_satuan']) ?>
+                                                <?= formatRupiah($item['harga_satuan']) ?>
                                             </small>
                                         </div>
 
                                     </div>
 
                                     <strong>
-                                        <?= rupiah($item['subtotal']) ?>
+                                        <?= formatRupiah($item['subtotal']) ?>
                                     </strong>
 
                                 </div>
@@ -371,7 +371,7 @@ if ($cart_invalid && $error === '') {
 
                             <div class="checkout-total">
                                 <span>Total</span>
-                                <span><?= rupiah($total_harga) ?></span>
+                                <span><?= formatRupiah($total_harga) ?></span>
                             </div>
 
                             <button

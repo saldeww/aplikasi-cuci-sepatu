@@ -1,9 +1,10 @@
 <?php
 
 // 1. Panggil data dari file eksternal
-require_once 'data_layanan.php';
+require_once 'config/database.php';
 
-// 2. Opsional: Ambil 4 layanan pertama saja jika ingin menampilkan "Layanan Unggulan" di Home
+
+//2. Opsional: Ambil 4 layanan pertama saja jika ingin menampilkan "Layanan Unggulan" di Home
 $layanan_unggulan = array_slice($layanan_list, 0, 5);
 ?>
 

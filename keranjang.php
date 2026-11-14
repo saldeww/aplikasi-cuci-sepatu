@@ -756,7 +756,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
                                     </p>
 
                                     <div class="unit-price" data-unit-price>
-                                        <?= rupiah($item['harga_satuan']) ?> / item
+                                        <?= formatRupiah($item['harga_satuan']) ?> / item
                                     </div>
 
                                 </div>
@@ -798,7 +798,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
                                                 <?php if (!empty($variant['durasi_label'])): ?>
                                                     · <?= e($variant['durasi_label']) ?>
                                                 <?php endif; ?>
-                                                — <?= rupiah($variant['harga']) ?>
+                                                — <?= formatRupiah($variant['harga']) ?>
 
                                             </option>
 
@@ -826,7 +826,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
                                                     <?= e($size['nama_ukuran']) ?>
                                                     <?php if ((float) $size['harga_tambahan'] > 0): ?>
-                                                        (+<?= rupiah($size['harga_tambahan']) ?>)
+                                                        (+<?= formatRupiah($size['harga_tambahan']) ?>)
                                                     <?php else: ?>
                                                         (Harga dasar)
                                                     <?php endif; ?>
@@ -892,7 +892,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
                                                     </span>
 
                                                     <span class="addon-price">
-                                                        +<?= rupiah($addon['harga']) ?>
+                                                        +<?= formatRupiah($addon['harga']) ?>
                                                     </span>
 
                                                 </label>
@@ -959,7 +959,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
                                 <div>
                                     <div class="subtotal-label">Subtotal item</div>
                                     <div class="subtotal" data-subtotal>
-                                        <?= rupiah($item['subtotal']) ?>
+                                        <?= formatRupiah($item['subtotal']) ?>
                                     </div>
                                 </div>
 
@@ -1014,7 +1014,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
                 <div class="summary-row">
                     <span>Biaya layanan</span>
-                    <strong id="summary-service-total"><?= rupiah($total) ?></strong>
+                    <strong id="summary-service-total"><?= formatRupiah($total) ?></strong>
                 </div>
 
                 <div class="summary-row">
@@ -1024,7 +1024,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
                 <div class="summary-row summary-total">
                     <span>Total</span>
-                    <strong id="summary-grand-total"><?= rupiah($total) ?></strong>
+                    <strong id="summary-grand-total"><?= formatRupiah($total) ?></strong>
                 </div>
 
                 <?php if (!empty($items) && $cart_ready): ?>
@@ -1081,7 +1081,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
             }));
         }
 
-        const formatRupiah = (angka) => {
+        const formatformatRupiah = (angka) => {
             return new Intl.NumberFormat('id-ID', {
                 style: 'currency',
                 currency: 'IDR',
@@ -1156,7 +1156,7 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
                         if (unitPrice) {
                             unitPrice.textContent =
-                                formatRupiah(result.item.harga_satuan) + ' / item';
+                                formatformatRupiah(result.item.harga_satuan) + ' / item';
                         }
 
                         // Update subtotal item
@@ -1165,15 +1165,15 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
                         if (subtotal) {
                             subtotal.textContent =
-                                formatRupiah(result.item.subtotal);
+                                formatformatRupiah(result.item.subtotal);
                         }
 
                         // Update total keranjang
                         document.querySelector('#summary-service-total').textContent =
-                            formatRupiah(result.cart.total);
+                            formatformatRupiah(result.cart.total);
 
                         document.querySelector('#summary-grand-total').textContent =
-                            formatRupiah(result.cart.total);
+                            formatformatRupiah(result.cart.total);
 
                         document.querySelector('#total-item-count').textContent =
                             result.cart.total_item;
