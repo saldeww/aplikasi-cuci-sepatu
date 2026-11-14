@@ -1,4 +1,3 @@
-
 <?php
 
 function handleCheckoutRequest($conn, $user_id)
@@ -50,7 +49,13 @@ function handleCheckoutRequest($conn, $user_id)
 
     $jadwal = DateTime::createFromFormat('!Y-m-d\TH:i', $jadwal_input);
     $date_errors = DateTime::getLastErrors();
+
     $now = new DateTime();
+    // Normalisasi waktu ke level menit (abaikan detik/milidetik)
+    $now->setTimestamp(floor($now->getTimestamp() / 60) * 60);
+    if ($jadwal) {
+        $jadwal->setTimestamp(floor($jadwal->getTimestamp() / 60) * 60);
+    }
 
     if (
         !$jadwal ||
@@ -61,7 +66,7 @@ function handleCheckoutRequest($conn, $user_id)
                 $date_errors['error_count'] > 0
             )
         ) ||
-        $jadwal <= $now
+        $jadwal < $now
     ) {
         return 'Jadwal pelaksanaan harus valid dan belum lewat.';
     }
@@ -89,6 +94,10 @@ function handleCheckoutRequest($conn, $user_id)
 
         error_log('Checkout error: ' . $exception->getMessage());
 
-        return 'Checkout gagal: ' . $exception->getMessage();
+        if ($exception instanceof CheckoutValidationException) {
+            return $exception->getMessage();
+        }
+
+        return 'Checkout gagal diproses. Silakan coba lagi. Jika masalah berlanjut, hubungi admin.';
     }
 }

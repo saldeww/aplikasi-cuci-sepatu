@@ -63,10 +63,20 @@ if ($cart_invalid && $error === '') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>Checkout | Cuci Disini</title>
-
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="assets/css/styles.css">
 
     <style>
+        #map {
+            height: 280px;
+            width: 100%;
+            border-radius: 9px;
+            margin-bottom: 12px;
+            border: 1px solid #d1d5db;
+            z-index: 1;
+        }
+
         .checkout-layout {
             display: grid;
             grid-template-columns: 1.5fr 1fr;
@@ -152,17 +162,14 @@ if ($cart_invalid && $error === '') {
 
     <header class="site-header">
         <div class="container">
-
             <a href="index.php" class="brand">
                 <span class="brand-mark">C</span>
                 cuci disini
             </a>
-
             <div class="icon-row">
                 <a href="keranjang.php" class="icon-btn">Keranjang</a>
                 <a href="pesanan.php" class="icon-btn">Pesanan</a>
             </div>
-
         </div>
     </header>
 
@@ -188,207 +195,119 @@ if ($cart_invalid && $error === '') {
 
             <form method="POST" class="checkout-form">
 
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= e($_SESSION['csrf_token']) ?>">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
 
                 <div class="checkout-layout">
 
                     <!-- INFORMASI PELANGGAN -->
                     <div>
-
                         <div class="checkout-card">
-
                             <h2>Informasi Pelanggan</h2>
 
                             <label for="nama_lengkap">Nama Lengkap</label>
-
-                            <input
-                                type="text"
-                                id="nama_lengkap"
-                                name="nama_lengkap"
-                                maxlength="150"
-                                value="<?= e($_POST['nama_lengkap'] ?? $user['nama'] ?? '') ?>"
-                                required>
+                            <input type="text" id="nama_lengkap" name="nama_lengkap" maxlength="150" value="<?= e($_POST['nama_lengkap'] ?? $user['nama'] ?? '') ?>" required>
 
                             <label for="no_wa">Nomor WhatsApp</label>
+                            <input type="tel" id="no_wa" name="no_wa" maxlength="30" value="<?= e($_POST['no_wa'] ?? $user['no_wa'] ?? '') ?>" placeholder="08xxxxxxxxxx" required>
 
-                            <input
-                                type="tel"
-                                id="no_wa"
-                                name="no_wa"
-                                maxlength="30"
-                                value="<?= e($_POST['no_wa'] ?? $user['no_wa'] ?? '') ?>"
-                                placeholder="08xxxxxxxxxx"
-                                required>
-
+                            <!-- Bagian Peta & Alamat -->
                             <label for="alamat_pengantaran">Alamat Pengantaran</label>
+                            <p style="font-size: 13px; color: #6b7280; margin-top: -6px; margin-bottom: 10px;">
+                                Geser pin merah pada peta atau klik lokasi Anda untuk mengisi alamat secara otomatis. (Luar Sukabumi dikenakan tambahan ongkir Rp 15.000).
+                            </p>
+
+                            <div id="map"></div>
 
                             <textarea
                                 id="alamat_pengantaran"
                                 name="alamat_pengantaran"
                                 maxlength="1000"
-                                placeholder="Masukkan alamat lengkap..."
+                                placeholder="Alamat akan terisi otomatis saat Anda memilih titik di peta..."
                                 required><?= e($_POST['alamat_pengantaran'] ?? '') ?></textarea>
-
                         </div>
 
                         <!-- METODE PENGANTARAN -->
                         <div class="checkout-card">
-
                             <h2>Metode Pengantaran</h2>
-
                             <label for="metode_pengantaran">Pilih Metode</label>
-
-                            <select
-                                id="metode_pengantaran"
-                                name="metode_pengantaran"
-                                required>
-
+                            <select id="metode_pengantaran" name="metode_pengantaran" required>
                                 <option value="">Pilih metode pengantaran</option>
-
-                                <option value="Antar"
-                                    <?= (($_POST['metode_pengantaran'] ?? '') === 'Antar') ? 'selected' : '' ?>>
-                                    Antar
-                                </option>
-
-                                <option value="Antar-Jemput"
-                                    <?= (($_POST['metode_pengantaran'] ?? '') === 'Antar-Jemput') ? 'selected' : '' ?>>
-                                    Antar-Jemput
-                                </option>
-
+                                <option value="Antar" <?= (($_POST['metode_pengantaran'] ?? '') === 'Antar') ? 'selected' : '' ?>>Antar</option>
+                                <option value="Antar-Jemput" <?= (($_POST['metode_pengantaran'] ?? '') === 'Antar-Jemput') ? 'selected' : '' ?>>Antar-Jemput</option>
                             </select>
 
                             <label for="jadwal_pelaksanaan">Jadwal Pelaksanaan</label>
-
-                            <input
-                                type="datetime-local"
-                                id="jadwal_pelaksanaan"
-                                name="jadwal_pelaksanaan"
-                                min="<?= date('Y-m-d\TH:i') ?>"
-                                value="<?= e($_POST['jadwal_pelaksanaan'] ?? '') ?>"
-                                required>
-
+                            <input type="datetime-local" id="jadwal_pelaksanaan" name="jadwal_pelaksanaan" min="<?= date('Y-m-d\TH:i') ?>" value="<?= e($_POST['jadwal_pelaksanaan'] ?? '') ?>" required>
                         </div>
 
                         <!-- METODE PEMBAYARAN -->
                         <div class="checkout-card">
-
                             <h2>Metode Pembayaran</h2>
-
                             <label for="metode_pembayaran">Pilih Pembayaran</label>
-
-                            <select
-                                id="metode_pembayaran"
-                                name="metode_pembayaran"
-                                required>
-
+                            <select id="metode_pembayaran" name="metode_pembayaran" required>
                                 <option value="">Pilih metode pembayaran</option>
-
-                                <option value="QRIS"
-                                    <?= (($_POST['metode_pembayaran'] ?? '') === 'QRIS') ? 'selected' : '' ?>>
-                                    QRIS
-                                </option>
-
-                                <option value="Cash"
-                                    <?= (($_POST['metode_pembayaran'] ?? '') === 'Cash') ? 'selected' : '' ?>>
-                                    Cash
-                                </option>
-
+                                <option value="QRIS" <?= (($_POST['metode_pembayaran'] ?? '') === 'QRIS') ? 'selected' : '' ?>>QRIS</option>
+                                <option value="Cash" <?= (($_POST['metode_pembayaran'] ?? '') === 'Cash') ? 'selected' : '' ?>>Cash</option>
                             </select>
-
                         </div>
-
                     </div>
 
                     <!-- RINGKASAN PESANAN -->
                     <div>
-
                         <div class="checkout-card">
-
                             <h2>Ringkasan Pesanan</h2>
 
                             <?php foreach ($items as $item): ?>
-
                                 <div class="checkout-item">
-
                                     <div style="flex: 1;">
-
                                         <strong><?= e($item['nama']) ?></strong>
-
                                         <div style="margin-top: 5px;">
                                             <small>
                                                 <?= e($item['nama_varian'] ?? 'Varian belum dipilih') ?>
-
-                                                <!-- <?php if (!empty($item['durasi_label'])): ?>
-                                                    · <?= e($item['durasi_label']) ?>
-                                                <?php endif; ?> -->
+                                                <?php if (!empty($item['durasi_label'])): ?>
+                                                    | <?= e($item['durasi_label']) ?>
+                                                <?php endif; ?>
                                             </small>
                                         </div>
-
                                         <?php if (!empty($item['nama_ukuran'])): ?>
-                                            <div>
-                                                <small>
-                                                    Ukuran: <?= e($item['nama_ukuran']) ?>
-                                                </small>
-                                            </div>
+                                            <div><small>Ukuran: <?= e($item['nama_ukuran']) ?></small></div>
                                         <?php endif; ?>
-
                                         <?php foreach ($item['addons'] as $addon): ?>
-                                            <div>
-                                                <small>
-                                                    + <?= e($addon['nama_addon']) ?>
-                                                    (<?= formatRupiah($addon['harga_snapshot']) ?>)
-                                                </small>
-                                            </div>
+                                            <div><small>+ <?= e($addon['nama_addon']) ?> (<?= formatRupiah($addon['harga_snapshot']) ?>)</small></div>
                                         <?php endforeach; ?>
-
                                         <?php if (!empty($item['catatan'])): ?>
-                                            <div style="margin-top: 5px;">
-                                                <small>
-                                                    Catatan: <?= e($item['catatan']) ?>
-                                                </small>
-                                            </div>
+                                            <div style="margin-top: 5px;"><small>Catatan: <?= e($item['catatan']) ?></small></div>
                                         <?php endif; ?>
-
                                         <div style="margin-top: 7px;">
-                                            <small>
-                                                <?= (int) $item['jumlah'] ?> ×
-                                                <?= formatRupiah($item['harga_satuan']) ?>
-                                            </small>
+                                            <small><?= (int) $item['jumlah'] ?> × <?= formatRupiah($item['harga_satuan']) ?></small>
                                         </div>
-
                                     </div>
-
-                                    <strong>
-                                        <?= formatRupiah($item['subtotal']) ?>
-                                    </strong>
-
+                                    <strong><?= formatRupiah($item['subtotal']) ?></strong>
                                 </div>
-
                             <?php endforeach; ?>
+
+                            <!-- Baris Biaya Pengantaran / Luar Sukabumi -->
+                            <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 14px; color: #4b5563; border-top: 1px solid #eee; padding-top: 12px;">
+                                <span id="label-ongkir">Biaya Pengantaran</span>
+                                <span id="nominal-ongkir">Rp 0</span>
+                            </div>
 
                             <div class="checkout-total">
                                 <span>Total</span>
-                                <span><?= formatRupiah($total_harga) ?></span>
+                                <span id="total-harga-display" data-base-total="<?= $total_harga ?>"><?= formatRupiah($total_harga) ?></span>
                             </div>
 
-                            <button
-                                type="submit"
-                                class="btn checkout-submit"
-                                <?= ($error !== '' || $cart_invalid) ? 'disabled' : '' ?>>
+                            <!-- Input tersembunyi untuk flag/biaya tambahan -->
+                            <input type="hidden" name="biaya_tambahan_luar_kota" id="biaya_tambahan_luar_kota" value="0">
 
+                            <button type="submit" class="btn checkout-submit" <?= $cart_invalid ? 'disabled' : '' ?>>
                                 Buat Pesanan
-
                             </button>
 
                             <p style="text-align: center; margin-top: 14px;">
                                 <a href="keranjang.php">Kembali ke keranjang</a>
                             </p>
-
                         </div>
-
                     </div>
 
                 </div>
@@ -399,6 +318,124 @@ if ($cart_invalid && $error === '') {
     </main>
 
     <script src="assets/js/main.js" defer></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const defaultLat = -6.9080217;
+            const defaultLng = 106.8893248;
+
+            const map = L.map('map').setView([defaultLat, defaultLng], 13);
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            let marker = L.marker([defaultLat, defaultLng], {
+                draggable: true
+            }).addTo(map);
+
+            // Fungsi Format Rupiah JavaScript
+            function formatRupiahJs(angka) {
+                return 'Rp ' + angka.toLocaleString('id-ID');
+            }
+
+            // Fungsi untuk mengecek teks alamat dan menyesuaikan total harga
+            function cekBiayaPengantaran(alamatTeks) {
+                const baseTotal = parseInt(document.getElementById('total-harga-display').getAttribute('data-base-total')) || 0;
+                const labelOngkir = document.getElementById('label-ongkir');
+                const nominalOngkir = document.getElementById('nominal-ongkir');
+                const totalDisplay = document.getElementById('total-harga-display');
+                const hiddenBiaya = document.getElementById('biaya_tambahan_luar_kota');
+
+                const isSukabumi = alamatTeks.toLowerCase().includes('sukabumi');
+                let tambahanOngkir = 0;
+
+                if (!isSukabumi && alamatTeks.trim() !== '') {
+                    tambahanOngkir = 15000;
+                    labelOngkir.textContent = "Biaya Pengantaran (Luar Sukabumi)";
+                    nominalOngkir.textContent = "Rp 15.000";
+                } else {
+                    labelOngkir.textContent = "Biaya Pengantaran";
+                    nominalOngkir.textContent = "Gratis / Standar";
+                }
+
+                const totalAkhir = baseTotal + tambahanOngkir;
+                totalDisplay.textContent = formatRupiahJs(totalAkhir);
+                hiddenBiaya.value = tambahanOngkir;
+            }
+
+            // Event saat textarea alamat diketik manual
+            document.getElementById('alamat_pengantaran').addEventListener('input', function() {
+                cekBiayaPengantaran(this.value);
+            });
+
+            async function fetchAddress(lat, lng) {
+                const textarea = document.getElementById('alamat_pengantaran');
+                textarea.placeholder = "Mencari alamat...";
+
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                        headers: {
+                            'Accept-Language': 'id'
+                        }
+                    });
+                    const data = await response.json();
+
+                    if (data && data.display_name) {
+                        textarea.value = data.display_name;
+                    } else {
+                        textarea.value = `Lat: ${lat}, Lng: ${lng}`;
+                    }
+
+                    cekBiayaPengantaran(textarea.value);
+                } catch (error) {
+                    console.error('Gagal mengambil alamat:', error);
+                    textarea.value = `Lat: ${lat}, Lng: ${lng}`;
+                    cekBiayaPengantaran(textarea.value);
+                }
+            }
+
+            marker.on('dragend', function(event) {
+                const position = marker.getLatLng();
+                fetchAddress(position.lat, position.lng);
+            });
+
+            map.on('click', function(e) {
+                marker.setLatLng(e.latlng);
+                fetchAddress(e.latlng.lat, e.latlng.lng);
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+
+                    map.setView([userLat, userLng], 16);
+                    marker.setLatLng([userLat, userLng]);
+
+                    // Isi alamat otomatis hanya jika kolom masih kosong.
+                    // Jangan menimpa alamat yang sudah diketik/dikirim pengguna.
+                    const textarea = document.getElementById('alamat_pengantaran');
+                    if (textarea.value.trim() === '') {
+                        fetchAddress(userLat, userLng);
+                    }
+                }, function(error) {
+                    console.log("GPS tidak diizinkan atau gagal diakses, menggunakan lokasi default.");
+                }, {
+                    timeout: 10000
+                });
+            }
+
+            // Jalankan cek awal jika textarea sudah terisi nilai sebelumnya
+            const initialAlamat = document.getElementById('alamat_pengantaran').value;
+            if (initialAlamat.trim() !== '') {
+                cekBiayaPengantaran(initialAlamat);
+            }
+        });
+    </script>
 
 </body>
 

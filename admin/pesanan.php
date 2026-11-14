@@ -27,6 +27,26 @@ $detail_id = (int) ($_GET['id'] ?? 0);
 
 $valid_status = ['Pending', 'Diproses', 'Selesai', 'Dibatalkan'];
 
+// Ambil data statistik pesanan untuk ringkasan di atas
+$stats = [
+    'Total' => 0,
+    'Pending' => 0,
+    'Diproses' => 0,
+    'Selesai' => 0,
+    'Dibatalkan' => 0
+];
+
+$stats_query = $conn->query("SELECT status_pesanan, COUNT(*) as total FROM pesanan GROUP BY status_pesanan");
+if ($stats_query) {
+    while ($row = $stats_query->fetch_assoc()) {
+        $stats['Total'] += (int)$row['total'];
+        if (isset($stats[$row['status_pesanan']])) {
+            $stats[$row['status_pesanan']] = (int)$row['total'];
+        }
+    }
+}
+
+// Query utama untuk daftar pesanan
 $sql = "
     SELECT
         id,
@@ -74,11 +94,9 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $pesanan_list = [];
-
 while ($row = $result->fetch_assoc()) {
     $pesanan_list[] = $row;
 }
-
 $stmt->close();
 
 // Detail pesanan yang dipilih
@@ -110,21 +128,16 @@ if ($detail_id > 0) {
 
         $stmt->bind_param("i", $detail_id);
         $stmt->execute();
-
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
-            $snapshot = json_decode(
-                $row['addon_snapshot'] ?? '',
-                true
-            );
+            $snapshot = json_decode($row['addon_snapshot'] ?? '', true);
 
             if (!is_array($snapshot)) {
                 $snapshot = [];
             }
 
             $addons = $snapshot['addons'] ?? [];
-
             if (!is_array($addons)) {
                 $addons = [];
             }
@@ -285,6 +298,48 @@ function adminStatusClass($status)
         .flash.error {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        /* Statistik Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 22px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #eaecf2;
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+        }
+
+        .stat-card.active {
+            border-color: #4f46e5;
+            background: #eef2ff;
+        }
+
+        .stat-card span {
+            color: #8991a2;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .stat-card h3 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #172033;
         }
 
         .toolbar {
@@ -635,9 +690,7 @@ function adminStatusClass($status)
 
     <aside class="sidebar">
         <div class="brand"><span>C</span> Cuci Disini</div>
-
         <div class="menu-label">MENU UTAMA</div>
-
         <nav class="menu">
             <a href="dashboard.php">⌂ Dashboard</a>
             <a href="pesanan.php" class="active">📦 Manajemen Pesanan</a>
@@ -651,9 +704,8 @@ function adminStatusClass($status)
         <header class="topbar">
             <div>
                 <h1>Manajemen Pesanan</h1>
-                <p>Kelola transaksi dan pantau progres pengerjaan pelanggan.</p>
+                <p class="subtitle">Kelola transaksi dan pantau progres pengerjaan pelanggan.</p>
             </div>
-
             <a href="dashboard.php" class="back-link">← Dashboard</a>
         </header>
 
@@ -662,6 +714,30 @@ function adminStatusClass($status)
                 <?= e($flash['message']) ?>
             </div>
         <?php endif; ?>
+
+        <!-- KARTU STATISTIK RINGKASAN STATUS -->
+        <div class="stats-grid">
+            <a href="pesanan.php" class="stat-card <?= $filter_status === '' ? 'active' : '' ?>">
+                <span>Total Pesanan</span>
+                <h3><?= $stats['Total'] ?></h3>
+            </a>
+            <a href="pesanan.php?status=Pending" class="stat-card <?= $filter_status === 'Pending' ? 'active' : '' ?>">
+                <span>Pending</span>
+                <h3 style="color: #92400e;"><?= $stats['Pending'] ?></h3>
+            </a>
+            <a href="pesanan.php?status=Diproses" class="stat-card <?= $filter_status === 'Diproses' ? 'active' : '' ?>">
+                <span>Diproses</span>
+                <h3 style="color: #1e40af;"><?= $stats['Diproses'] ?></h3>
+            </a>
+            <a href="pesanan.php?status=Selesai" class="stat-card <?= $filter_status === 'Selesai' ? 'active' : '' ?>">
+                <span>Selesai</span>
+                <h3 style="color: #166534;"><?= $stats['Selesai'] ?></h3>
+            </a>
+            <a href="pesanan.php?status=Dibatalkan" class="stat-card <?= $filter_status === 'Dibatalkan' ? 'active' : '' ?>">
+                <span>Dibatalkan</span>
+                <h3 style="color: #991b1b;"><?= $stats['Dibatalkan'] ?></h3>
+            </a>
+        </div>
 
         <form method="GET" class="toolbar">
             <input
