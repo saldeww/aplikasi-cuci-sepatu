@@ -460,9 +460,6 @@ function createCheckoutOrder(
         |--------------------------------------------------------------------------
         */
         $biaya_tambahan_luar_kota = 0;
-        if (stripos($alamat, 'sukabumi') === false) {
-            $biaya_tambahan_luar_kota = 15000;
-        }
         $total_harga += $biaya_tambahan_luar_kota;
 
         /*

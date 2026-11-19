@@ -6,38 +6,68 @@ function handleCheckoutRequest($conn, $user_id)
         return '';
     }
 
+    $token = $_POST['csrf_token'] ?? '';
+
     if (
-        empty($_POST['csrf_token']) ||
-        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+        !is_string($token) ||
+        empty($_SESSION['csrf_token']) ||
+        !is_string($_SESSION['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], $token)
     ) {
         return 'Token keamanan tidak cocok. Silakan refresh halaman.';
     }
 
-    $nama = trim($_POST['nama_lengkap'] ?? '');
-    $no_wa = trim($_POST['no_wa'] ?? '');
-    $alamat = trim($_POST['alamat_pengantaran'] ?? '');
+    $nama = trim(is_string($_POST['nama_lengkap'] ?? null)
+        ? $_POST['nama_lengkap'] : '');
 
-    $metode_pembayaran = $_POST['metode_pembayaran'] ?? '';
-    $metode_pengantaran = $_POST['metode_pengantaran'] ?? '';
+    $no_wa = trim(is_string($_POST['no_wa'] ?? null)
+        ? $_POST['no_wa'] : '');
 
-    $jadwal_input = $_POST['jadwal_pelaksanaan'] ?? '';
+    $alamat = trim(is_string($_POST['alamat_pengantaran'] ?? null)
+        ? $_POST['alamat_pengantaran'] : '');
+
+    $latitude = filter_var(
+        $_POST['latitude'] ?? null,
+        FILTER_VALIDATE_FLOAT
+    );
+
+    $longitude = filter_var(
+        $_POST['longitude'] ?? null,
+        FILTER_VALIDATE_FLOAT
+    );
+
+    if (
+        $latitude === false || $latitude === null ||
+        $longitude === false || $longitude === null ||
+        !is_finite((float) $latitude) ||
+        !is_finite((float) $longitude) ||
+        $latitude < -90 || $latitude > 90 ||
+        $longitude < -180 || $longitude > 180
+    ) {
+        return 'Silakan pilih lokasi pengantaran melalui peta.';
+    }
 
     if (
         $nama === '' ||
         $no_wa === '' ||
         $alamat === '' ||
-        $jadwal_input === ''
-    ) {
-        return 'Semua detail pesanan wajib diisi.';
-    }
-
-    if (
         mb_strlen($nama) > 150 ||
         mb_strlen($no_wa) > 30 ||
         mb_strlen($alamat) > 1000
     ) {
-        return 'Ada informasi pelanggan yang terlalu panjang.';
+        return 'Informasi pelanggan tidak valid atau belum lengkap.';
     }
+
+    if (
+        !preg_match('/^[0-9+\s().-]+$/', $no_wa) ||
+        strlen(preg_replace('/\D/', '', $no_wa)) < 8 ||
+        strlen(preg_replace('/\D/', '', $no_wa)) > 15
+    ) {
+        return 'Nomor WhatsApp tidak valid.';
+    }
+
+    $metode_pembayaran = $_POST['metode_pembayaran'] ?? '';
+    $metode_pengantaran = $_POST['metode_pengantaran'] ?? '';
 
     if (!in_array($metode_pembayaran, ['QRIS', 'Cash'], true)) {
         return 'Metode pembayaran tidak valid.';
@@ -47,28 +77,39 @@ function handleCheckoutRequest($conn, $user_id)
         return 'Metode pengantaran tidak valid.';
     }
 
-    $jadwal = DateTime::createFromFormat('!Y-m-d\TH:i', $jadwal_input);
-    $date_errors = DateTime::getLastErrors();
+    $jadwal_input = $_POST['jadwal_pelaksanaan'] ?? '';
 
-    $now = new DateTime();
-    // Normalisasi waktu ke level menit (abaikan detik/milidetik)
-    $now->setTimestamp(floor($now->getTimestamp() / 60) * 60);
-    if ($jadwal) {
-        $jadwal->setTimestamp(floor($jadwal->getTimestamp() / 60) * 60);
+    if (!is_string($jadwal_input) || $jadwal_input === '') {
+        return 'Jadwal pelaksanaan wajib diisi.';
     }
+
+    $jadwal = DateTime::createFromFormat(
+        '!Y-m-d\TH:i',
+        $jadwal_input
+    );
+
+    $date_errors = DateTime::getLastErrors();
 
     if (
         !$jadwal ||
-        (
-            $date_errors !== false &&
-            (
-                $date_errors['warning_count'] > 0 ||
-                $date_errors['error_count'] > 0
-            )
-        ) ||
-        $jadwal < $now
+        ($date_errors !== false && (
+            $date_errors['warning_count'] > 0 ||
+            $date_errors['error_count'] > 0
+        )) ||
+        $jadwal->format('Y-m-d\TH:i') !== $jadwal_input
     ) {
-        return 'Jadwal pelaksanaan harus valid dan belum lewat.';
+        return 'Format jadwal pelaksanaan tidak valid.';
+    }
+
+    $now = new DateTime();
+    $now->setTime(
+        (int) $now->format('H'),
+        (int) $now->format('i'),
+        0
+    );
+
+    if ($jadwal < $now) {
+        return 'Jadwal pelaksanaan harus belum lewat.';
     }
 
     $jadwal_sql = $jadwal->format('Y-m-d H:i:s');
@@ -86,18 +127,18 @@ function handleCheckoutRequest($conn, $user_id)
             $jadwal_sql
         );
 
+
         $_SESSION['flash_pesanan'] = 'Pesanan berhasil dibuat!';
 
-        header('Location: pesanan.php?id=' . $pesanan_id);
+        header('Location: pesanan.php?id=' . (int) $pesanan_id);
         exit;
+    } catch (CheckoutValidationException $exception) {
+
+        return $exception->getMessage();
     } catch (Throwable $exception) {
 
         error_log('Checkout error: ' . $exception->getMessage());
 
-        if ($exception instanceof CheckoutValidationException) {
-            return $exception->getMessage();
-        }
-
-        return 'Checkout gagal diproses. Silakan coba lagi. Jika masalah berlanjut, hubungi admin.';
+        return 'Checkout gagal diproses. Silakan coba lagi.';
     }
 }

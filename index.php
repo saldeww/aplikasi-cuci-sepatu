@@ -119,8 +119,10 @@ $layanan_unggulan = array_slice($layanan_list, 0, 5);
       <div class="main-nav">
         <a href="index.php" aria-current="page">Home</a>
         <a href="layanan.php">Layanan</a>
+
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
+        <a href="feedback.php">Feedback & Saran</a>
       </div>
     </div>
   </nav>

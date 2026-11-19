@@ -228,6 +228,7 @@ if ($cart_invalid && $error === '') {
             }
         }
     </style>
+
 </head>
 
 <body>
@@ -313,6 +314,15 @@ if ($cart_invalid && $error === '') {
                                 maxlength="1000"
                                 placeholder="Alamat akan terisi otomatis saat Anda memilih titik di peta..."
                                 required><?= e($_POST['alamat_pengantaran'] ?? '') ?></textarea>
+                            <input
+                                type="hidden"
+                                name="latitude"
+                                id="latitude">
+
+                            <input
+                                type="hidden"
+                                name="longitude"
+                                id="longitude">
                         </div>
 
                         <!-- METODE PENGANTARAN -->
@@ -463,14 +473,23 @@ if ($cart_invalid && $error === '') {
 
             async function fetchAddress(lat, lng) {
                 const textarea = document.getElementById('alamat_pengantaran');
+
+                simpanKoordinat(lat, lng);
                 textarea.placeholder = "Mencari alamat...";
 
                 try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
-                        headers: {
-                            'Accept-Language': 'id'
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                            headers: {
+                                'Accept-Language': 'id'
+                            }
                         }
-                    });
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Gagal mengambil alamat');
+                    }
+
                     const data = await response.json();
 
                     if (data && data.display_name) {
@@ -479,11 +498,9 @@ if ($cart_invalid && $error === '') {
                         textarea.value = `Lat: ${lat}, Lng: ${lng}`;
                     }
 
-                    cekBiayaPengantaran(textarea.value);
                 } catch (error) {
-                    console.error('Gagal mengambil alamat:', error);
+                    console.error(error);
                     textarea.value = `Lat: ${lat}, Lng: ${lng}`;
-                    cekBiayaPengantaran(textarea.value);
                 }
             }
 
@@ -636,6 +653,13 @@ if ($cart_invalid && $error === '') {
             const initialAlamat = document.getElementById('alamat_pengantaran').value;
             if (initialAlamat.trim() !== '') {
                 cekBiayaPengantaran(initialAlamat);
+            }
+            const latitudeInput = document.getElementById('latitude');
+            const longitudeInput = document.getElementById('longitude');
+
+            function simpanKoordinat(lat, lng) {
+                latitudeInput.value = Number(lat).toFixed(7);
+                longitudeInput.value = Number(lng).toFixed(7);
             }
         });
     </script>
