@@ -1,5 +1,6 @@
-
 <?php
+
+class CheckoutValidationException extends Exception {}
 
 /*
 |--------------------------------------------------------------------------
@@ -198,13 +199,18 @@ function createCheckoutOrder(
     $nama,
     $no_wa,
     $alamat,
+    $latitude,
+    $longitude,
+    $wilayah_pengantaran,
     $metode_pembayaran,
     $metode_pengantaran,
     $jadwal_sql
 ) {
-    mysqli_begin_transaction($conn);
+    $transaction_started = false;
 
     try {
+        mysqli_begin_transaction($conn);
+        $transaction_started = true;
 
         /*
         |--------------------------------------------------------------------------
@@ -265,7 +271,7 @@ function createCheckoutOrder(
         $stmt->close();
 
         if (empty($checkout_items)) {
-            throw new Exception('Keranjang kamu kosong.');
+            throw new CheckoutValidationException('Keranjang kamu kosong.');
         }
 
         $total_harga = 0;
@@ -283,14 +289,14 @@ function createCheckoutOrder(
             $layanan_id = (int) $item['layanan_id'];
 
             if ($item['status_layanan'] !== 'Aktif') {
-                throw new Exception('Ada layanan yang sudah tidak aktif.');
+                throw new CheckoutValidationException('Ada layanan yang sudah tidak aktif.');
             }
 
             if (
                 empty($item['varian_id']) ||
                 $item['status_varian'] !== 'Aktif'
             ) {
-                throw new Exception(
+                throw new CheckoutValidationException(
                     'Ada varian layanan yang tidak valid. Periksa keranjang.'
                 );
             }
@@ -302,7 +308,7 @@ function createCheckoutOrder(
                     $item['status_ukuran'] !== 'Aktif' ||
                     (int) $item['ukuran_layanan_id'] !== $layanan_id
                 ) {
-                    throw new Exception(
+                    throw new CheckoutValidationException(
                         'Ada ukuran barang yang belum dipilih atau tidak valid.'
                     );
                 }
@@ -311,7 +317,7 @@ function createCheckoutOrder(
             $jumlah = (int) $item['jumlah'];
 
             if ($jumlah < 1 || $jumlah > 99) {
-                throw new Exception('Jumlah item tidak valid.');
+                throw new CheckoutValidationException('Jumlah item tidak valid.');
             }
 
             $harga_dasar = (float) $item['harga_dasar'];
@@ -357,7 +363,7 @@ function createCheckoutOrder(
                     $addon['status'] !== 'Aktif' ||
                     (int) $addon['layanan_id'] !== $layanan_id
                 ) {
-                    throw new Exception(
+                    throw new CheckoutValidationException(
                         'Ada addon yang sudah tidak tersedia. Periksa keranjang.'
                     );
                 }
@@ -398,7 +404,7 @@ function createCheckoutOrder(
             foreach ($required_addons as $required) {
 
                 if (!in_array((int) $required['id'], $selected_ids, true)) {
-                    throw new Exception(
+                    throw new CheckoutValidationException(
                         'Addon wajib ' . $required['nama_addon'] . ' belum dipilih.'
                     );
                 }
@@ -434,7 +440,7 @@ function createCheckoutOrder(
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
             if ($snapshot_json === false) {
-                throw new Exception('Gagal membuat snapshot pesanan.');
+                throw new CheckoutValidationException('Gagal membuat snapshot pesanan.');
             }
 
             $details[] = [
@@ -453,6 +459,14 @@ function createCheckoutOrder(
 
         /*
         |--------------------------------------------------------------------------
+        | CEK BIAYA TAMBAHAN LUAR KOTA (DI LUAR SUKABUMI)
+        |--------------------------------------------------------------------------
+        */
+        $biaya_tambahan_luar_kota = ($wilayah_pengantaran === 'luar_kota') ? 15000 : 0;
+        $total_harga += $biaya_tambahan_luar_kota;
+
+        /*
+        |--------------------------------------------------------------------------
         | SIMPAN PESANAN UTAMA
         |--------------------------------------------------------------------------
         */
@@ -467,6 +481,8 @@ function createCheckoutOrder(
                 nama_lengkap,
                 no_wa,
                 alamat_pengantaran,
+                latitude,
+                longitude,
                 total_harga,
                 status_pesanan,
                 status_pembayaran,
@@ -474,18 +490,20 @@ function createCheckoutOrder(
                 metode_pengantaran,
                 jadwal_pelaksanaan
             ) VALUES (
-                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?,
                 'Pending', 'Unpaid', ?, ?, ?
             )
         ");
 
         $stmt->bind_param(
-            "sisssdsss",
+            "sisssdddsss",
             $no_pesanan,
             $user_id,
             $nama,
             $no_wa,
             $alamat,
+            $latitude,
+            $longitude,
             $total_harga,
             $metode_pembayaran,
             $metode_pengantaran,
@@ -600,7 +618,9 @@ function createCheckoutOrder(
         return $pesanan_id;
     } catch (Throwable $exception) {
 
-        mysqli_rollback($conn);
+        if ($transaction_started) {
+            mysqli_rollback($conn);
+        }
 
         throw $exception;
     }

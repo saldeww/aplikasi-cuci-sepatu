@@ -219,8 +219,9 @@ try {
         $harga_v = (float)$harga_v;
 
         if ($row_id > 0) {
+
             $stmt_update->bind_param(
-                "ssd isii",
+                "ssdisii",
                 $nama_v,
                 $durasi_v,
                 $harga_v,
@@ -229,6 +230,7 @@ try {
                 $row_id,
                 $id
             );
+
             $stmt_update->execute();
 
             if ($stmt_update->affected_rows === 0) {
@@ -389,8 +391,9 @@ try {
         $harga_a = (float)$harga_a;
 
         if ($row_id > 0) {
+
             $stmt_update->bind_param(
-                "ssd iisii",
+                "ssdiisii",
                 $nama_a,
                 $deskripsi_a,
                 $harga_a,
@@ -400,6 +403,7 @@ try {
                 $row_id,
                 $id
             );
+
             $stmt_update->execute();
         } else {
             $stmt_insert->bind_param(

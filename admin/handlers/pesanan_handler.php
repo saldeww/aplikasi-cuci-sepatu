@@ -11,6 +11,62 @@ if (
 }
 
 require_once __DIR__ . '/../../config/database.php';
+function hapusPesanan($conn, $pesanan_id)
+{
+    $conn->begin_transaction();
+
+    try {
+        // Kunci dan periksa pesanan
+        $stmt = $conn->prepare("
+            SELECT status_pembayaran
+            FROM pesanan
+            WHERE id = ?
+            FOR UPDATE
+        ");
+
+        $stmt->bind_param("i", $pesanan_id);
+        $stmt->execute();
+
+        $pesanan = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$pesanan) {
+            throw new Exception('Pesanan tidak ditemukan.');
+        }
+
+        // Lindungi transaksi yang sudah dibayar
+        if (in_array($pesanan['status_pembayaran'], ['Paid', 'Refunded'], true)) {
+            throw new Exception('Pesanan yang sudah dibayar atau direfund tidak boleh dihapus.');
+        }
+
+        // Hapus detail item
+        $stmt = $conn->prepare("
+            DELETE FROM detail_pesanan
+            WHERE pesanan_id = ?
+        ");
+
+        $stmt->bind_param("i", $pesanan_id);
+        $stmt->execute();
+        $stmt->close();
+
+        // Hapus pesanan
+        $stmt = $conn->prepare("
+            DELETE FROM pesanan
+            WHERE id = ?
+        ");
+
+        $stmt->bind_param("i", $pesanan_id);
+        $stmt->execute();
+        $stmt->close();
+
+        $conn->commit();
+
+        return true;
+    } catch (Throwable $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../pesanan.php');
@@ -50,15 +106,10 @@ $allowed_status = [
         'Refunded'
     ]
 ];
-
-if (
-    $pesanan_id < 1 ||
-    !isset($allowed_status[$jenis]) ||
-    !in_array($status, $allowed_status[$jenis], true)
-) {
+if ($pesanan_id < 1) {
     $_SESSION['flash_admin'] = [
         'type' => 'error',
-        'message' => 'Data perubahan status tidak valid.'
+        'message' => 'ID pesanan tidak valid.'
     ];
 
     header('Location: ../pesanan.php');
@@ -66,10 +117,33 @@ if (
 }
 
 try {
-    // Pastikan pesanan memang tersedia.
+
+    // AKSI HAPUS PESANAN
+    if ($jenis === 'hapus_pesanan') {
+
+        hapusPesanan($conn, $pesanan_id);
+
+        $_SESSION['flash_admin'] = [
+            'type' => 'success',
+            'message' => 'Pesanan berhasil dihapus.'
+        ];
+
+        header('Location: ../pesanan.php');
+        exit;
+    }
+
+    // AKSI UPDATE STATUS
+    if (
+        !isset($allowed_status[$jenis]) ||
+        !in_array($status, $allowed_status[$jenis], true)
+    ) {
+        throw new Exception('Data perubahan status tidak valid.');
+    }
+
     $check = $conn->prepare(
         "SELECT id FROM pesanan WHERE id = ? LIMIT 1"
     );
+
     $check->bind_param("i", $pesanan_id);
     $check->execute();
 
@@ -80,7 +154,6 @@ try {
         throw new Exception('Pesanan tidak ditemukan.');
     }
 
-    // Nama kolom dipilih hanya dari whitelist di atas.
     $sql = "UPDATE pesanan SET $jenis = ? WHERE id = ?";
 
     $stmt = $conn->prepare($sql);
@@ -93,13 +166,17 @@ try {
         'message' => 'Status pesanan berhasil diperbarui.'
     ];
 } catch (Throwable $e) {
-    error_log('Admin update pesanan: ' . $e->getMessage());
+
+    error_log('Admin pesanan: ' . $e->getMessage());
 
     $_SESSION['flash_admin'] = [
         'type' => 'error',
-        'message' => 'Gagal memperbarui status pesanan.'
+        'message' => $e->getMessage()
     ];
 }
+
+header('Location: ../pesanan.php?id=' . $pesanan_id);
+exit;
 
 header('Location: ../pesanan.php?id=' . $pesanan_id);
 exit;

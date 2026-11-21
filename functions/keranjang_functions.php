@@ -131,7 +131,7 @@ function getCartItems($conn, $user_id)
 function getCartVariants($conn)
 {
     $result = $conn->query("
-        SELECT id, layanan_id, nama_varian, durasi_label, harga
+        SELECT id, layanan_id, nama_varian, harga
         FROM layanan_varian
         WHERE status = 'Aktif'
         ORDER BY urutan ASC, id ASC

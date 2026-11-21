@@ -2,6 +2,7 @@
 session_start();
 
 require_once 'config/database.php';
+require_once 'functions/helper.php';
 
 // Buat token CSRF jika belum tersedia
 if (empty($_SESSION['csrf_token'])) {
@@ -31,10 +32,10 @@ $order_by = $sort_options[$sort_by];
 // FUNGSI FORMAT RUPIAH
 // ==========================================
 
-function formatRupiah($harga)
-{
-  return 'Rp ' . number_format((float) $harga, 0, ',', '.');
-}
+// function formatRupiah($harga)
+// {
+//   return 'Rp ' . number_format((float) $harga, 0, ',', '.');
+// }
 
 
 // ==========================================
@@ -112,16 +113,6 @@ mysqli_stmt_close($stmt);
 // ==========================================
 
 $total_layanan = count($layanan_list);
-
-
-// ==========================================
-// HELPER HTML
-// ==========================================
-
-function e($value)
-{
-  return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
 
 ?>
 
@@ -285,7 +276,6 @@ function e($value)
         <a href="layanan.php" aria-current="page">Layanan</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
-        <a href="tracking.php">Tracking Pesanan</a>
         <a href="login.php">Login</a>
       </div>
 
@@ -317,7 +307,6 @@ function e($value)
     <a href="layanan.php">Layanan</a>
     <a href="pesanan.php">Pesanan</a>
     <a href="kontak.php">Kontak</a>
-    <a href="tracking.php">Tracking Pesanan</a>
     <a href="login.php">Login</a>
 
   </div>
