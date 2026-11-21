@@ -66,14 +66,19 @@ function handleCheckoutRequest($conn, $user_id)
         return 'Nomor WhatsApp tidak valid.';
     }
 
-    $metode_pembayaran = $_POST['metode_pembayaran'] ?? '';
-    $metode_pengantaran = $_POST['metode_pengantaran'] ?? '';
+    $wilayah_pengantaran = $_POST['wilayah_pengantaran'] ?? '';
+    $metode_pembayaran   = $_POST['metode_pembayaran'] ?? '';
+    $metode_pengantaran  = $_POST['metode_pengantaran'] ?? '';
+
+    if (!in_array($wilayah_pengantaran, ['kota_sukabumi', 'luar_kota'], true)) {
+        return 'Wilayah pengantaran tidak valid.';
+    }
 
     if (!in_array($metode_pembayaran, ['QRIS', 'Cash'], true)) {
         return 'Metode pembayaran tidak valid.';
     }
 
-    if (!in_array($metode_pengantaran, ['Antar', 'Antar-Jemput'], true)) {
+    if (!in_array($metode_pengantaran, ['Antar-Jemput', 'Antar', 'Jemput'], true)) {
         return 'Metode pengantaran tidak valid.';
     }
 
@@ -122,6 +127,9 @@ function handleCheckoutRequest($conn, $user_id)
             $nama,
             $no_wa,
             $alamat,
+            (float) $latitude,
+            (float) $longitude,
+            $wilayah_pengantaran,
             $metode_pembayaran,
             $metode_pengantaran,
             $jadwal_sql

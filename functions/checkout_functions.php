@@ -199,6 +199,9 @@ function createCheckoutOrder(
     $nama,
     $no_wa,
     $alamat,
+    $latitude,
+    $longitude,
+    $wilayah_pengantaran,
     $metode_pembayaran,
     $metode_pengantaran,
     $jadwal_sql
@@ -459,7 +462,7 @@ function createCheckoutOrder(
         | CEK BIAYA TAMBAHAN LUAR KOTA (DI LUAR SUKABUMI)
         |--------------------------------------------------------------------------
         */
-        $biaya_tambahan_luar_kota = 0;
+        $biaya_tambahan_luar_kota = ($wilayah_pengantaran === 'luar_kota') ? 15000 : 0;
         $total_harga += $biaya_tambahan_luar_kota;
 
         /*
@@ -478,6 +481,8 @@ function createCheckoutOrder(
                 nama_lengkap,
                 no_wa,
                 alamat_pengantaran,
+                latitude,
+                longitude,
                 total_harga,
                 status_pesanan,
                 status_pembayaran,
@@ -485,18 +490,20 @@ function createCheckoutOrder(
                 metode_pengantaran,
                 jadwal_pelaksanaan
             ) VALUES (
-                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?,
                 'Pending', 'Unpaid', ?, ?, ?
             )
         ");
 
         $stmt->bind_param(
-            "sisssdsss",
+            "sisssdddsss",
             $no_pesanan,
             $user_id,
             $nama,
             $no_wa,
             $alamat,
+            $latitude,
+            $longitude,
             $total_harga,
             $metode_pembayaran,
             $metode_pengantaran,

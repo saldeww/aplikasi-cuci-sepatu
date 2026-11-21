@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+date_default_timezone_set('Asia/Jakarta');
+
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/functions/helper.php';
 
@@ -41,7 +43,7 @@ $stmt = $conn->prepare("
         d.harga_dasar,
         d.harga_tambahan,
         d.jumlah,
-        d.subtotal,
+        (d.harga_satuan * d.jumlah) AS subtotal,
         l.gambar
     FROM pesanan p
     LEFT JOIN detail_pesanan d ON d.pesanan_id = p.id
@@ -67,7 +69,8 @@ while ($row = $result->fetch_assoc()) {
       'nama_lengkap' => $row['nama_lengkap'],
       'no_wa' => $row['no_wa'],
       'alamat_pengantaran' => $row['alamat_pengantaran'],
-      'total_harga' => $row['total_harga'],
+      'total_harga' => (float) $row['total_harga'],
+      'subtotal_layanan' => 0,
       'status_pesanan' => $row['status_pesanan'],
       'status_pembayaran' => $row['status_pembayaran'],
       'metode_pembayaran' => $row['metode_pembayaran'],
@@ -91,6 +94,10 @@ while ($row = $result->fetch_assoc()) {
       $addons = [];
     }
 
+    $subtotal_item = (float) $row['subtotal'];
+
+    $pesanan_list[$id]['subtotal_layanan'] += $subtotal_item;
+
     $pesanan_list[$id]['detail'][] = [
       'detail_id' => (int) $row['detail_id'],
       'nama_layanan' => $row['nama_layanan_snapshot'] ?: 'Layanan tidak tersedia',
@@ -103,7 +110,7 @@ while ($row = $result->fetch_assoc()) {
       'harga_tambahan' => $row['harga_tambahan'],
       'harga_satuan' => $row['harga_satuan'],
       'jumlah' => $row['jumlah'],
-      'subtotal' => $row['subtotal']
+      'subtotal' => $subtotal_item
     ];
   }
 }
@@ -455,111 +462,13 @@ $filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
         <span class="brand-mark">C</span>
         cuci disini
       </a>
-      <a class="skip-link" href="#main">Skip to content</a>
-      <!-- <form class="search" role="search" onsubmit="event.preventDefault()">
-        <input
-          type="text"
-          placeholder="Cari layanan atau produk…"
-          aria-label="Cari di toko" />
-        <button type="submit" aria-label="Search">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
-        </button>
-      </form> -->
 
       <div class="icon-row">
-        <a href="login.php" class="icon-btn" aria-label="Account">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
-          </svg>
-        </a>
-        <a href="#" class="icon-btn" aria-label="Wishlist">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round">
-            <path
-              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span class="count">3</span>
-        </a>
-        <a
-          href="keranjang.php"
-          class="icon-btn icon-btn--cart"
-          aria-label="Cart">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z" />
-            <path d="M4 7h16" />
-            <path d="M16 11a4 4 0 0 1-8 0" />
-          </svg>
-          <span class="count">2</span>
-        </a>
-        <button
-          class="nav-toggle"
-          aria-label="Open menu"
-          aria-expanded="false">
-          ≡
-        </button>
+        <a href="keranjang.php" class="icon-btn">Keranjang</a>
+        <a href="pesanan.php" class="icon-btn">Pesanan</a>
       </div>
     </div>
   </header>
-  <nav class="nav-bar" aria-label="Primary">
-    <div class="container">
-      <a href="layanan.php" class="all-cats">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.4"
-          stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-        Semua Kategori
-      </a>
-      <div class="main-nav">
-        <a href="index.php" aria-current="page">Home</a>
-        <a href="layanan.php">Layanan</a>
-        <a href="pesanan.php">Pesanan</a>
-        <a href="kontak.php">Kontak</a>
-        <a href="login.php">Login</a>
-      </div>
-    </div>
-  </nav>
-
   <main class="section">
     <div class="container orders-page">
 
@@ -840,7 +749,41 @@ $filter_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
             </div>
 
-            <!-- TOTAL -->
+            <!-- BIAYA PENGANTARAN & TOTAL -->
+            <?php
+            $biaya_pengantaran = $pesanan['total_harga'] - $pesanan['subtotal_layanan'];
+            ?>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:12px;
+              margin-top:16px;
+              padding-top:14px;
+              border-top:1px solid #e5e7eb;
+              color:#4b5563;
+              font-size:14px;
+            ">
+              <span>Subtotal Layanan</span>
+              <span><?= formatRupiah($pesanan['subtotal_layanan']) ?></span>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:12px;
+              margin-top:8px;
+              color:#4b5563;
+              font-size:14px;
+            ">
+              <span>Biaya Pengantaran</span>
+              <span>
+                <?= $biaya_pengantaran > 0
+                    ? formatRupiah($biaya_pengantaran)
+                    : '<span style="color:#16a34a;">Gratis</span>' ?>
+              </span>
+            </div>
+
             <div class="order-total">
 
               <span>Total Pembayaran</span>
