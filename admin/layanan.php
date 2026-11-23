@@ -447,7 +447,8 @@ function layananBadgeClass($status)
         }
 
         .edit-btn,
-        .toggle-btn {
+        .toggle-btn,
+        .delete-btn {
             padding: 8px 10px;
             border: 0;
             border-radius: 8px;
@@ -455,7 +456,8 @@ function layananBadgeClass($status)
             font-weight: 700;
             cursor: pointer;
             white-space: nowrap;
-            color: #ff0000;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .edit-btn {
@@ -466,6 +468,15 @@ function layananBadgeClass($status)
         .toggle-btn {
             background: #f1f3f6;
             color: #475569;
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
         }
 
         .empty {
@@ -682,7 +693,7 @@ function layananBadgeClass($status)
 
                                     <td>
                                         <div class="actions">
-                                            <a href="edit_layanan.php?id=<?= (int)$item['id'] ?>" class="action-btn">
+                                            <a href="edit_layanan.php?id=<?= (int)$item['id'] ?>" class="edit-btn">
                                                 Edit
                                             </a>
 
@@ -690,13 +701,23 @@ function layananBadgeClass($status)
                                                 action="handlers/layanan_handler.php"
                                                 method="POST"
                                                 onsubmit="return confirm('Yakin ingin mengubah status layanan ini?')">
-
                                                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
                                                 <input type="hidden" name="aksi" value="toggle_status">
                                                 <input type="hidden" name="layanan_id" value="<?= (int) $item['id'] ?>">
-
-                                                <button type="submit" class="toggle-btn ">
+                                                <button type="submit" class="toggle-btn">
                                                     <?= $item['status'] === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan' ?>
+                                                </button>
+                                            </form>
+
+                                            <form
+                                                action="handlers/layanan_handler.php"
+                                                method="POST"
+                                                onsubmit="return confirm('Hapus layanan \"<?= e(addslashes($item['nama'])) ?>\"?\nTindakan ini tidak dapat dibatalkan.')">
+                                                <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
+                                                <input type="hidden" name="aksi" value="hapus">
+                                                <input type="hidden" name="layanan_id" value="<?= (int) $item['id'] ?>">
+                                                <button type="submit" class="delete-btn">
+                                                    Hapus
                                                 </button>
                                             </form>
                                         </div>

@@ -43,7 +43,7 @@ $stmt = $conn->prepare("
         d.harga_dasar,
         d.harga_tambahan,
         d.jumlah,
-        (d.harga_satuan * d.jumlah) AS subtotal,
+        d.subtotal,
         l.gambar
     FROM pesanan p
     LEFT JOIN detail_pesanan d ON d.pesanan_id = p.id

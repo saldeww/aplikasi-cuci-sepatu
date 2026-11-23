@@ -82,7 +82,13 @@
         $types .= 's';
     }
 
-    $sql .= " ORDER BY created_at DESC, id DESC";
+    // Default: Selesai & Dibatalkan muncul paling bawah, aktif di atas
+    $sql .= "
+        ORDER BY
+            FIELD(status_pesanan, 'Pending', 'Diproses', 'Selesai', 'Dibatalkan') ASC,
+            created_at DESC,
+            id DESC
+    ";
 
     $stmt = $conn->prepare($sql);
 

@@ -89,6 +89,79 @@ if ($aksi === 'toggle_status') {
     exit;
 }
 
+if ($aksi === 'hapus') {
+    $layanan_id = (int) ($_POST['layanan_id'] ?? 0);
+
+    if ($layanan_id < 1) {
+        $_SESSION['flash_layanan'] = ['type' => 'error', 'message' => 'ID layanan tidak valid.'];
+        header('Location: ../layanan.php');
+        exit;
+    }
+
+    // Cegah hapus jika layanan masih punya pesanan aktif (Pending/Diproses)
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) FROM detail_pesanan dp
+        INNER JOIN pesanan p ON p.id = dp.pesanan_id
+        WHERE dp.layanan_id = ?
+          AND p.status_pesanan IN ('Pending', 'Diproses')
+    ");
+    $stmt->bind_param("i", $layanan_id);
+    $stmt->execute();
+    $ada_pesanan_aktif = (int) $stmt->get_result()->fetch_row()[0];
+    $stmt->close();
+
+    if ($ada_pesanan_aktif > 0) {
+        $_SESSION['flash_layanan'] = [
+            'type' => 'error',
+            'message' => 'Layanan tidak dapat dihapus karena masih ada pesanan aktif yang menggunakannya.'
+        ];
+        header('Location: ../layanan.php');
+        exit;
+    }
+
+    try {
+        // Ambil path gambar sebelum hapus
+        $stmt = $conn->prepare("SELECT gambar FROM layanan WHERE id = ? LIMIT 1");
+        $stmt->bind_param("i", $layanan_id);
+        $stmt->execute();
+        $row_gambar = $stmt->get_result()->fetch_row();
+        $stmt->close();
+
+        if (!$row_gambar) {
+            throw new Exception('Layanan tidak ditemukan.');
+        }
+
+        $gambar_lama = $row_gambar[0] ?? '';
+
+        // Hapus layanan — cascade otomatis hapus layanan_varian, layanan_ukuran, layanan_addon
+        // FK detail_pesanan.layanan_id akan di-SET NULL secara otomatis oleh DB
+        $stmt = $conn->prepare("DELETE FROM layanan WHERE id = ?");
+        $stmt->bind_param("i", $layanan_id);
+        $stmt->execute();
+
+        if ($stmt->affected_rows < 1) {
+            throw new Exception('Layanan tidak ditemukan atau sudah dihapus.');
+        }
+        $stmt->close();
+
+        // Hapus file gambar dari disk jika ada
+        if ($gambar_lama !== '') {
+            $file_path = __DIR__ . '/../../' . ltrim($gambar_lama, '/');
+            if (is_file($file_path)) {
+                unlink($file_path);
+            }
+        }
+
+        $_SESSION['flash_layanan'] = ['type' => 'success', 'message' => 'Layanan berhasil dihapus.'];
+    } catch (Throwable $e) {
+        error_log('Hapus layanan: ' . $e->getMessage());
+        $_SESSION['flash_layanan'] = ['type' => 'error', 'message' => 'Gagal menghapus layanan: ' . $e->getMessage()];
+    }
+
+    header('Location: ../layanan.php');
+    exit;
+}
+
 if ($aksi !== 'tambah') {
     kembaliDenganPesan('error', 'Aksi tidak dikenali.');
 }

@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Jakarta');
 
 if (
     !isset($_SESSION['user_id']) ||
@@ -14,32 +15,16 @@ require_once __DIR__ . '/../functions/helper.php';
 
 $nama = $_SESSION['nama'] ?? 'Administrator';
 
-function adminCount($conn, $sql)
-{
-    $result = $conn->query($sql);
-    if (!$result) {
-        return 0;
-    }
-    return (int) $result->fetch_row()[0];
-}
-
 // Statistik dashboard
-$total_pesanan = adminCount($conn, "SELECT COUNT(*) FROM pesanan");
+$total_pesanan = (int) $conn->query("SELECT COUNT(*) FROM pesanan")->fetch_row()[0];
 
-$pesanan_hari_ini = adminCount(
-    $conn,
-    "SELECT COUNT(*) FROM pesanan WHERE DATE(created_at) = CURDATE()"
-);
+$pesanan_pending = (int) $conn->query("SELECT COUNT(*) FROM pesanan WHERE status_pesanan = 'Pending'")->fetch_row()[0];
 
-$total_layanan = adminCount(
-    $conn,
-    "SELECT COUNT(*) FROM layanan WHERE status = 'Aktif'"
-);
+$pesanan_hari_ini = (int) $conn->query("SELECT COUNT(*) FROM pesanan WHERE DATE(created_at) = CURDATE()")->fetch_row()[0];
 
-$total_transaksi = adminCount(
-    $conn,
-    "SELECT COALESCE(SUM(total_harga), 0) FROM pesanan"
-);
+$total_layanan = (int) $conn->query("SELECT COUNT(*) FROM layanan WHERE status = 'Aktif'")->fetch_row()[0];
+
+$total_transaksi = (float) $conn->query("SELECT COALESCE(SUM(total_harga), 0) FROM pesanan")->fetch_row()[0];
 
 // Pesanan terbaru
 $pesanan_terbaru = [];
@@ -62,6 +47,82 @@ if ($result) {
     while ($row = $result->fetch_assoc()) {
         $pesanan_terbaru[] = $row;
     }
+}
+
+// Data grafik pesanan per bulan (12 bulan terakhir)
+$chart_labels = [];
+$chart_pesanan = [];
+$chart_omzet = [];
+
+for ($i = 11; $i >= 0; $i--) {
+    $ts = strtotime("-{$i} months");
+    $chart_labels[] = date('M Y', $ts);
+
+    $bln = date('Y-m', $ts);
+    $row_c = $conn->query("
+        SELECT COUNT(*), COALESCE(SUM(total_harga), 0)
+        FROM pesanan
+        WHERE DATE_FORMAT(created_at, '%Y-%m') = '{$bln}'
+    ")->fetch_row();
+
+    $chart_pesanan[] = (int) $row_c[0];
+    $chart_omzet[]   = (float) $row_c[1];
+}
+
+// Data grafik per kuartal (4 kuartal terakhir)
+// Hitung manual: quarter saat ini, lalu mundur 3 kuartal
+$chart_q_labels  = [];
+$chart_q_pesanan = [];
+$chart_q_omzet   = [];
+
+$cur_year    = (int) date('Y');
+$cur_quarter = (int) ceil(date('n') / 3); // 1-4
+
+for ($i = 3; $i >= 0; $i--) {
+    // Mundur $i kuartal dari kuartal sekarang
+    $q_offset    = $cur_quarter - $i;
+    $year_offset = $cur_year;
+
+    while ($q_offset < 1) {
+        $q_offset += 4;
+        $year_offset--;
+    }
+
+    $q_month_start = ($q_offset - 1) * 3 + 1;             // bulan pertama kuartal
+    $q_month_end   = $q_offset * 3;                        // bulan terakhir kuartal
+
+    $q_start = date('Y-m-01', mktime(0, 0, 0, $q_month_start, 1, $year_offset));
+    $q_end   = date('Y-m-t',  mktime(0, 0, 0, $q_month_end,   1, $year_offset));
+
+    $chart_q_labels[] = "Q{$q_offset} {$year_offset}";
+
+    $row_q = $conn->query("
+        SELECT COUNT(*), COALESCE(SUM(total_harga), 0)
+        FROM pesanan
+        WHERE created_at BETWEEN '{$q_start}' AND '{$q_end} 23:59:59'
+    ")->fetch_row();
+
+    $chart_q_pesanan[] = (int) $row_q[0];
+    $chart_q_omzet[]   = (float) $row_q[1];
+}
+
+// Data grafik per tahun (5 tahun terakhir)
+$chart_y_labels = [];
+$chart_y_pesanan = [];
+$chart_y_omzet = [];
+
+for ($i = 4; $i >= 0; $i--) {
+    $year = (int) date('Y') - $i;
+    $chart_y_labels[] = (string) $year;
+
+    $row_y = $conn->query("
+        SELECT COUNT(*), COALESCE(SUM(total_harga), 0)
+        FROM pesanan
+        WHERE YEAR(created_at) = {$year}
+    ")->fetch_row();
+
+    $chart_y_pesanan[] = (int) $row_y[0];
+    $chart_y_omzet[]   = (float) $row_y[1];
 }
 
 function statusClass($status)
@@ -304,7 +365,7 @@ function statusClass($status)
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 16px;
         }
 
@@ -481,6 +542,12 @@ function statusClass($status)
             font-size: 12px;
         }
 
+        @media (max-width: 1300px) {
+            .stats {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 1100px) {
             .stats {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -559,6 +626,31 @@ function statusClass($status)
                 grid-template-columns: 1fr;
             }
         }
+        .chart-period-btn,
+        .chart-type-btn {
+            padding: 8px 14px;
+            border: 1px solid #e2e5ed;
+            border-radius: 8px;
+            background: white;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .15s;
+        }
+
+        .chart-period-btn.active,
+        .chart-type-btn.active {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: white;
+        }
+
+        .chart-period-btn:hover:not(.active),
+        .chart-type-btn:hover:not(.active) {
+            border-color: #a5b4fc;
+            color: #4f46e5;
+        }
     </style>
 </head>
 
@@ -620,7 +712,11 @@ function statusClass($status)
             <div class="stat-card">
                 <div class="stat-top">
                     <span class="stat-label">Total Pesanan</span>
-                    <span class="stat-icon">📦</span>
+                    <span class="stat-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z"/><path d="M4 7h16"/><path d="M16 11a4 4 0 0 1-8 0"/>
+                        </svg>
+                    </span>
                 </div>
                 <div class="stat-value"><?= number_format($total_pesanan) ?></div>
                 <div class="stat-description">Seluruh transaksi tersimpan</div>
@@ -628,8 +724,27 @@ function statusClass($status)
 
             <div class="stat-card">
                 <div class="stat-top">
+                    <span class="stat-label">Perlu Ditindak</span>
+                    <span class="stat-icon" style="background:#fef3c7;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </span>
+                </div>
+                <div class="stat-value" style="<?= $pesanan_pending > 0 ? 'color:#92400e' : '' ?>">
+                    <?= number_format($pesanan_pending) ?>
+                </div>
+                <div class="stat-description">Pesanan berstatus Pending</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
                     <span class="stat-label">Pesanan Hari Ini</span>
-                    <span class="stat-icon">📅</span>
+                    <span class="stat-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </span>
                 </div>
                 <div class="stat-value"><?= number_format($pesanan_hari_ini) ?></div>
                 <div class="stat-description">Transaksi masuk hari ini</div>
@@ -637,22 +752,30 @@ function statusClass($status)
 
             <div class="stat-card">
                 <div class="stat-top">
-                    <span class="stat-label">Nilai Transaksi</span>
-                    <span class="stat-icon">💰</span>
+                    <span class="stat-label">Total Nilai Transaksi</span>
+                    <span class="stat-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </span>
                 </div>
-                <div class="stat-value" style="font-size:20px">
+                <div class="stat-value" style="font-size:18px">
                     <?= formatRupiah($total_transaksi) ?>
                 </div>
-                <div class="stat-description">Akumulasi seluruh pesanan, bukan hanya pembayaran lunas</div>
+                <div class="stat-description">Akumulasi semua pesanan</div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-top">
                     <span class="stat-label">Layanan Aktif</span>
-                    <span class="stat-icon">🧼</span>
+                    <span class="stat-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </span>
                 </div>
                 <div class="stat-value"><?= number_format($total_layanan) ?></div>
-                <div class="stat-description">Layanan yang tersedia di website</div>
+                <div class="stat-description">Layanan tersedia di website</div>
             </div>
 
         </section>
@@ -680,6 +803,29 @@ function statusClass($status)
                     <small>Tambah, edit, dan atur layanan toko</small>
                 </div>
             </a>
+        </section>
+
+        <div class="section-heading" style="margin-top:32px">
+            <div>
+                <h2>Grafik Pembelian</h2>
+                <p>Jumlah pesanan dan omzet berdasarkan periode.</p>
+            </div>
+
+            <div style="display:flex;gap:8px;">
+                <button class="chart-period-btn active" data-period="bulan">Per Bulan</button>
+                <button class="chart-period-btn" data-period="kuartal">Per Kuartal</button>
+                <button class="chart-period-btn" data-period="tahun">Per Tahun</button>
+            </div>
+        </div>
+
+        <section class="table-card" style="padding:22px 24px 18px;">
+            <div style="display:flex;gap:12px;margin-bottom:18px;">
+                <button class="chart-type-btn active" data-type="pesanan">Jumlah Pesanan</button>
+                <button class="chart-type-btn" data-type="omzet">Omzet (Rp)</button>
+            </div>
+            <div style="position:relative;height:280px;">
+                <canvas id="salesChart"></canvas>
+            </div>
         </section>
 
         <div class="section-heading">
@@ -746,6 +892,109 @@ function statusClass($status)
         </section>
 
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+    (function () {
+        const DATA = {
+            bulan: {
+                labels:  <?= json_encode($chart_labels) ?>,
+                pesanan: <?= json_encode($chart_pesanan) ?>,
+                omzet:   <?= json_encode($chart_omzet) ?>
+            },
+            kuartal: {
+                labels:  <?= json_encode($chart_q_labels) ?>,
+                pesanan: <?= json_encode($chart_q_pesanan) ?>,
+                omzet:   <?= json_encode($chart_q_omzet) ?>
+            },
+            tahun: {
+                labels:  <?= json_encode($chart_y_labels) ?>,
+                pesanan: <?= json_encode($chart_y_pesanan) ?>,
+                omzet:   <?= json_encode($chart_y_omzet) ?>
+            }
+        };
+
+        let currentPeriod = 'bulan';
+        let currentType   = 'pesanan';
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: buildData(),
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (item) {
+                                if (currentType === 'omzet') {
+                                    return 'Rp ' + Number(item.raw).toLocaleString('id-ID');
+                                }
+                                return item.raw + ' pesanan';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (val) {
+                                if (currentType === 'omzet') {
+                                    if (val >= 1000000) return 'Rp ' + (val / 1000000).toFixed(1) + 'jt';
+                                    if (val >= 1000) return 'Rp ' + (val / 1000).toFixed(0) + 'rb';
+                                    return 'Rp ' + val;
+                                }
+                                return val;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        function buildData() {
+            const d = DATA[currentPeriod];
+            const values = currentType === 'pesanan' ? d.pesanan : d.omzet;
+            return {
+                labels: d.labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: 'rgba(99, 102, 241, 0.75)',
+                    borderRadius: 7,
+                    borderSkipped: false
+                }]
+            };
+        }
+
+        function refresh() {
+            chart.data = buildData();
+            chart.update();
+        }
+
+        document.querySelectorAll('.chart-period-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.chart-period-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentPeriod = btn.dataset.period;
+                refresh();
+            });
+        });
+
+        document.querySelectorAll('.chart-type-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentType = btn.dataset.type;
+                refresh();
+            });
+        });
+    })();
+    </script>
 
 </body>
 
