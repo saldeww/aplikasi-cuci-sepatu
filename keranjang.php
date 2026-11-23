@@ -75,90 +75,14 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="assets/css/styles.css" />
     <style>
         :root {
             --primary: #4f46e5;
             --primary-dark: #3730a3;
-            --paper: #f7f7fb;
-            --white: #fff;
-            --dark: #17172b;
-            --muted: #77778b;
-            --border: #e9e9f0;
             --danger: #dc2626;
             --success: #15803d;
             --radius: 17px;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--paper);
-            color: var(--dark);
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        button,
-        input,
-        select,
-        textarea {
-            font: inherit;
-        }
-
-        .container {
-            width: min(1160px, 92%);
-            margin: auto;
-        }
-
-        .navbar {
-            background: #fff;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .nav-inner {
-            min-height: 72px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .brand {
-            font-size: 21px;
-            font-weight: 800;
-            letter-spacing: -1px;
-        }
-
-        .brand-mark {
-            display: inline-grid;
-            place-items: center;
-            width: 35px;
-            height: 35px;
-            margin-right: 7px;
-            border-radius: 10px;
-            background: var(--primary);
-            color: #fff;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 25px;
-            color: var(--muted);
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .nav-links a:hover,
-        .nav-links .active {
-            color: var(--primary);
         }
 
         .page-header {
@@ -607,15 +531,6 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
         }
 
         @media(max-width: 520px) {
-            .nav-links {
-                gap: 12px;
-                font-size: 11px;
-            }
-
-            .brand {
-                font-size: 17px;
-            }
-
             .cart-item {
                 padding: 16px;
             }
@@ -697,43 +612,48 @@ $selected_addons = getSelectedCartAddons($conn, $user_id);
         </div>
     </header>
 
-    <!-- Category Nav -->
-    <nav class="nav-bar" aria-label="Primary">
-        <div class="container">
-            <a href="layanan.php" class="all-cats">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <line x1="3" y1="12" x2="21" y2="12" />
-                    <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-                Semua Layanan
-            </a>
-            <div class="main-nav">
-                <a href="index.php">Home</a>
-                <a href="layanan.php">Layanan</a>
-                <a href="keranjang.php" aria-current="page">Keranjang</a>
-                <a href="pesanan.php">Pesanan</a>
-                <a href="kontak.php">Kontak</a>
-                <a href="feedback.php">Feedback</a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Mobile Drawer -->
-    <div class="drawer" id="drawer" aria-hidden="true">
-        <div class="drawer-head">
-            <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
-            <button class="drawer-close" aria-label="Close menu">Close ✕</button>
-        </div>
+<nav class="nav-bar" aria-label="Primary">
+    <div class="container">
+      <a href="layanan.php" class="all-cats">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        Semua Layanan
+      </a>
+      <div class="main-nav">
         <a href="index.php">Home</a>
         <a href="layanan.php">Layanan</a>
-        <a href="keranjang.php">Keranjang</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
         <a href="feedback.php">Feedback</a>
-        <a href="profile.php">Profil Saya</a>
-        <a href="logout.php">Keluar</a>
+        <a href="keranjang.php" aria-current="page">Keranjang</a>
+        <?php if (!$is_logged_in): ?>
+          <a href="login.php">Login</a>
+        <?php endif; ?>
+      </div>
     </div>
+  </nav>
+
+  <!-- Mobile Drawer -->
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
+      <button class="drawer-close" aria-label="Close menu">Close ✕</button>
+    </div>
+    <a href="index.php">Home</a>
+    <a href="layanan.php">Layanan</a>
+    <a href="pesanan.php">Pesanan</a>
+    <a href="kontak.php">Kontak</a>
+    <a href="feedback.php">Feedback</a>
+    <?php if ($is_logged_in): ?>
+      <a href="profile.php">Profil Saya</a>
+      <a href="logout.php">Keluar</a>
+    <?php else: ?>
+      <a href="login.php" class="btn btn--indigo" style="margin-top:var(--s5);justify-content:center">Login / Daftar →</a>
+    <?php endif; ?>
+  </div>
 
     <main id="main" class="container">
 
