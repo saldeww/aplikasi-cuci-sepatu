@@ -1,8 +1,21 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Jakarta');
 
 require_once 'config/database.php';
 require_once 'functions/helper.php';
+
+$is_logged_in = !empty($_SESSION['user_id']);
+$user_id      = $is_logged_in ? (int) $_SESSION['user_id'] : 0;
+
+$cart_count = 0;
+if ($is_logged_in) {
+  $stmt_cart = $conn->prepare("SELECT COALESCE(SUM(jumlah), 0) FROM keranjang WHERE user_id = ?");
+  $stmt_cart->bind_param("i", $user_id);
+  $stmt_cart->execute();
+  $cart_count = (int) $stmt_cart->get_result()->fetch_row()[0];
+  $stmt_cart->close();
+}
 
 // Buat token CSRF jika belum tersedia
 if (empty($_SESSION['csrf_token'])) {
@@ -152,94 +165,38 @@ $total_layanan = count($layanan_list);
         cuci disini
       </a>
 
-      <!-- <form class="search" role="search" onsubmit="event.preventDefault()">
-        <input
-          type="text"
-          placeholder="Cari layanan atau produk…"
-          aria-label="Cari di toko" />
-        <button type="submit" aria-label="Search">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
-        </button>
-      </form> -->
-
       <div class="icon-row">
-        <a href="login.php" class="icon-btn" aria-label="Account">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
-          </svg>
-        </a>
-        <a href="#" class="icon-btn" aria-label="Wishlist">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round">
-            <path
-              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span class="count">3</span>
-        </a>
-        <a
-          href="keranjang.php"
-          class="icon-btn icon-btn--cart"
-          aria-label="Cart">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round">
+        <?php if ($is_logged_in): ?>
+          <a href="profile.php" class="icon-btn" aria-label="Profil Saya">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
+            </svg>
+          </a>
+        <?php else: ?>
+          <a href="login.php" class="icon-btn" aria-label="Login">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+          </a>
+        <?php endif; ?>
+
+        <a href="keranjang.php" class="icon-btn icon-btn--cart" aria-label="Keranjang">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z" />
             <path d="M4 7h16" />
             <path d="M16 11a4 4 0 0 1-8 0" />
           </svg>
-          <span class="count">2</span>
+          <?php if ($cart_count > 0): ?>
+            <span class="count"><?= $cart_count ?></span>
+          <?php endif; ?>
         </a>
-        <button
-          class="nav-toggle"
-          aria-label="Open menu"
-          aria-expanded="false">
-          ≡
-        </button>
+
+        <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">≡</button>
       </div>
     </div>
-  </header>
-
-
-  <button
-    class="nav-toggle"
-    type="button"
-    aria-label="Buka menu">
-    ≡
-  </button>
-
-  </div>
-  </div>
   </header>
 
 
@@ -248,67 +205,46 @@ $total_layanan = count($layanan_list);
     ======================================= -->
 
   <nav class="nav-bar" aria-label="Primary">
-
     <div class="container">
-
       <a href="layanan.php" class="all-cats">
-
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.4"
-          stroke-linecap="round">
-
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
-
-        Semua Kategori
-
+        Semua Layanan
       </a>
-
       <div class="main-nav">
         <a href="index.php">Home</a>
         <a href="layanan.php" aria-current="page">Layanan</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
-        <a href="login.php">Login</a>
+        <a href="feedback.php">Feedback</a>
+        <?php if (!$is_logged_in): ?>
+          <a href="login.php">Login</a>
+        <?php endif; ?>
       </div>
-
     </div>
-
   </nav>
 
 
-  <!-- ======================================
-         MOBILE DRAWER
-    ======================================= -->
-
+  <!-- Mobile Drawer -->
   <div class="drawer" id="drawer" aria-hidden="true">
-
     <div class="drawer-head">
-
-      <a href="index.php" class="brand">
-        <span class="brand-mark">C</span>
-        Cuci Disini
-      </a>
-
-      <button class="drawer-close" type="button">
-        Close ✕
-      </button>
-
+      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
+      <button class="drawer-close" aria-label="Close menu">Close ✕</button>
     </div>
-
     <a href="index.php">Home</a>
     <a href="layanan.php">Layanan</a>
     <a href="pesanan.php">Pesanan</a>
     <a href="kontak.php">Kontak</a>
-    <a href="login.php">Login</a>
-
+    <a href="feedback.php">Feedback</a>
+    <?php if ($is_logged_in): ?>
+      <a href="profile.php">Profil Saya</a>
+      <a href="logout.php">Keluar</a>
+    <?php else: ?>
+      <a href="login.php" class="btn btn--indigo" style="margin-top:var(--s5);justify-content:center">Login / Daftar →</a>
+    <?php endif; ?>
   </div>
 
 

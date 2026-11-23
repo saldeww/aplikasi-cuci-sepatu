@@ -3,6 +3,7 @@ session_start();
 date_default_timezone_set('Asia/Jakarta');
 
 require_once 'config/database.php';
+require_once 'functions/helper.php';
 
 if (empty($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -20,10 +21,13 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-function e($value)
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
+// Cart count untuk badge
+$cart_count = 0;
+$stmt_cart = $conn->prepare("SELECT COALESCE(SUM(jumlah), 0) FROM keranjang WHERE user_id = ?");
+$stmt_cart->bind_param("i", $user_id);
+$stmt_cart->execute();
+$cart_count = (int) $stmt_cart->get_result()->fetch_row()[0];
+$stmt_cart->close();
 
 $success = '';
 $error = '';
@@ -379,73 +383,75 @@ $initial = strtoupper(substr($user['nama'], 0, 1));
 
 <body>
 
+    <!-- Header -->
     <header class="site-header">
         <div class="container">
             <a href="index.php" class="brand">
                 <span class="brand-mark">C</span>
                 cuci disini
             </a>
-            <a class="skip-link" href="#main">Skip to content</a>
 
             <div class="icon-row">
-                <a href="profile.php" class="icon-btn" aria-label="Account">
-                    <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round">
+                <a href="profile.php" class="icon-btn" aria-label="Profil Saya">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <circle cx="12" cy="8" r="4" />
                         <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
                     </svg>
                 </a>
-                <a href="#" class="icon-btn" aria-label="Wishlist">
-                    <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path
-                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                    <span class="count">3</span>
-                </a>
-                <a
-                    href="keranjang.php"
-                    class="icon-btn icon-btn--cart"
-                    aria-label="Cart">
-                    <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round">
+
+                <a href="keranjang.php" class="icon-btn icon-btn--cart" aria-label="Keranjang">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z" />
                         <path d="M4 7h16" />
                         <path d="M16 11a4 4 0 0 1-8 0" />
                     </svg>
-                    <span class="count">2</span>
+                    <?php if ($cart_count > 0): ?>
+                        <span class="count"><?= $cart_count ?></span>
+                    <?php endif; ?>
                 </a>
-                <button
-                    class="nav-toggle"
-                    aria-label="Open menu"
-                    aria-expanded="false">
-                    ≡
-                </button>
+
+                <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">≡</button>
             </div>
         </div>
     </header>
 
-    <main class="profile-page">
+    <!-- Category Nav -->
+    <nav class="nav-bar" aria-label="Primary">
+        <div class="container">
+            <a href="layanan.php" class="all-cats">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+                Semua Layanan
+            </a>
+            <div class="main-nav">
+                <a href="index.php">Home</a>
+                <a href="layanan.php">Layanan</a>
+                <a href="pesanan.php">Pesanan</a>
+                <a href="kontak.php">Kontak</a>
+                <a href="feedback.php">Feedback</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Drawer -->
+    <div class="drawer" id="drawer" aria-hidden="true">
+        <div class="drawer-head">
+            <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
+            <button class="drawer-close" aria-label="Close menu">Close ✕</button>
+        </div>
+        <a href="index.php">Home</a>
+        <a href="layanan.php">Layanan</a>
+        <a href="pesanan.php">Pesanan</a>
+        <a href="kontak.php">Kontak</a>
+        <a href="feedback.php">Feedback</a>
+        <a href="profile.php">Profil Saya</a>
+        <a href="logout.php">Keluar</a>
+    </div>
+
+    <main id="main" class="profile-page">
 
         <div class="container">
 

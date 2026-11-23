@@ -2,10 +2,24 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+date_default_timezone_set('Asia/Jakarta');
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/functions/helper.php';
+
+$is_logged_in = !empty($_SESSION['user_id']);
+$fb_user_id   = $is_logged_in ? (int) $_SESSION['user_id'] : 0;
+
+$cart_count = 0;
+if ($is_logged_in) {
+    $stmt_cart = $conn->prepare("SELECT COALESCE(SUM(jumlah), 0) FROM keranjang WHERE user_id = ?");
+    $stmt_cart->bind_param("i", $fb_user_id);
+    $stmt_cart->execute();
+    $cart_count = (int) $stmt_cart->get_result()->fetch_row()[0];
+    $stmt_cart->close();
+}
 
 function feedbackEscape($value)
 {
@@ -158,6 +172,9 @@ $old_pesan = feedbackInput('pesan');
 
     <title>Feedback & Saran | Cuci Disini</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="assets/css/styles.css">
 
     <style>
@@ -302,6 +319,7 @@ $old_pesan = feedbackInput('pesan');
 
 <body>
 
+    <!-- Header -->
     <header class="site-header">
         <div class="container">
             <a href="index.php" class="brand">
@@ -310,14 +328,83 @@ $old_pesan = feedbackInput('pesan');
             </a>
 
             <div class="icon-row">
-                <a href="index.php" class="icon-btn">Beranda</a>
-                <a href="keranjang.php" class="icon-btn">Keranjang</a>
-                <a href="pesanan.php" class="icon-btn">Pesanan</a>
+                <?php if ($is_logged_in): ?>
+                    <a href="profile.php" class="icon-btn" aria-label="Profil Saya">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
+                        </svg>
+                    </a>
+                <?php else: ?>
+                    <a href="login.php" class="icon-btn" aria-label="Login">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                            <polyline points="10 17 15 12 10 7"/>
+                            <line x1="15" y1="12" x2="3" y2="12"/>
+                        </svg>
+                    </a>
+                <?php endif; ?>
+
+                <a href="keranjang.php" class="icon-btn icon-btn--cart" aria-label="Keranjang">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z" />
+                        <path d="M4 7h16" />
+                        <path d="M16 11a4 4 0 0 1-8 0" />
+                    </svg>
+                    <?php if ($cart_count > 0): ?>
+                        <span class="count"><?= $cart_count ?></span>
+                    <?php endif; ?>
+                </a>
+
+                <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">≡</button>
             </div>
         </div>
     </header>
 
-    <main class="section">
+    <!-- Category Nav -->
+    <nav class="nav-bar" aria-label="Primary">
+        <div class="container">
+            <a href="layanan.php" class="all-cats">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+                Semua Layanan
+            </a>
+            <div class="main-nav">
+                <a href="index.php">Home</a>
+                <a href="layanan.php">Layanan</a>
+                <a href="pesanan.php">Pesanan</a>
+                <a href="kontak.php">Kontak</a>
+                <a href="feedback.php" aria-current="page">Feedback</a>
+                <?php if (!$is_logged_in): ?>
+                    <a href="login.php">Login</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Drawer -->
+    <div class="drawer" id="drawer" aria-hidden="true">
+        <div class="drawer-head">
+            <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
+            <button class="drawer-close" aria-label="Close menu">Close ✕</button>
+        </div>
+        <a href="index.php">Home</a>
+        <a href="layanan.php">Layanan</a>
+        <a href="pesanan.php">Pesanan</a>
+        <a href="kontak.php">Kontak</a>
+        <a href="feedback.php">Feedback</a>
+        <?php if ($is_logged_in): ?>
+            <a href="profile.php">Profil Saya</a>
+            <a href="logout.php">Keluar</a>
+        <?php else: ?>
+            <a href="login.php" class="btn btn--indigo" style="margin-top:var(--s5);justify-content:center">Login / Daftar →</a>
+        <?php endif; ?>
+    </div>
+
+    <main id="main" class="section">
         <div class="container">
 
             <div class="crumbs">
@@ -452,6 +539,46 @@ $old_pesan = feedbackInput('pesan');
             </div>
         </div>
     </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="mark">
+                        <span class="brand-mark">C</span> Cuci Disini
+                    </div>
+                    <p>Cuci sepatu, tas, dan barang pribadi. Sejak 2025.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Akun</h4>
+                    <ul>
+                        <?php if ($is_logged_in): ?>
+                            <li><a href="profile.php">Profil Saya</a></li>
+                            <li><a href="pesanan.php">Pesanan Saya</a></li>
+                            <li><a href="keranjang.php">Keranjang</a></li>
+                            <li><a href="logout.php">Keluar</a></li>
+                        <?php else: ?>
+                            <li><a href="login.php">Login</a></li>
+                            <li><a href="register.php">Daftar Akun</a></li>
+                            <li><a href="pesanan.php">Pesanan Saya</a></li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Tentang Kami</h4>
+                    <ul>
+                        <li><a href="kontak.php">Kontak</a></li>
+                        <li><a href="feedback.php">Feedback &amp; Saran</a></li>
+                        <li><a href="layanan.php">Semua Layanan</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© <?= date('Y') ?> Cuci Disini. All rights reserved.</span>
+            </div>
+        </div>
+    </footer>
 
     <script src="assets/js/main.js" defer></script>
 

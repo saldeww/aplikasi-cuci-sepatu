@@ -84,23 +84,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <nav class="nav-bar" aria-label="Primary">
     <div class="container">
-      <a href="layanan.php" class="all-cats"><svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.4"
-          stroke-linecap="round">
+      <a href="layanan.php" class="all-cats">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>Semua Kategori</a>
+        </svg>Semua Layanan</a>
       <div class="main-nav">
         <a href="index.php">Home</a>
         <a href="layanan.php">Layanan</a>
         <a href="pesanan.php">Pesanan</a>
         <a href="kontak.php">Kontak</a>
+        <a href="feedback.php">Feedback</a>
         <a href="login.php" aria-current="page">Login</a>
       </div>
     </div>
@@ -108,12 +103,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <div class="drawer" id="drawer" aria-hidden="true">
     <div class="drawer-head">
-      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a><button class="drawer-close">Close ✕</button>
+      <a href="index.php" class="brand"><span class="brand-mark">C</span> Cuci Disini</a>
+      <button class="drawer-close" aria-label="Close menu">Close ✕</button>
     </div>
     <a href="index.php">Home</a>
     <a href="layanan.php">Layanan</a>
     <a href="pesanan.php">Pesanan</a>
     <a href="kontak.php">Kontak</a>
+    <a href="feedback.php">Feedback</a>
+    <a href="login.php" class="btn btn--indigo" style="margin-top:var(--s5);justify-content:center">Login / Daftar →</a>
   </div>
 
   <main id="main">
