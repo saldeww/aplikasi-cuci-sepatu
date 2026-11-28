@@ -2,44 +2,53 @@
 session_start();
 require_once 'config/database.php';
 
-// Kalau sudah login, arahkan sesuai role
 if (isset($_SESSION['user_id'])) {
-  if (($_SESSION['role'] ?? '') === 'Admin') {
-    header('Location: admin/dashboard.php');
-  } else {
-    header('Location: index.php');
-  }
+  header('Location: ' . (($_SESSION['role'] ?? '') === 'Admin'
+    ? 'admin/dashboard.php'
+    : 'index.php'));
   exit;
 }
 
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $email = trim($_POST['email'] ?? '');
+  $login_type = $_POST['login_type'] ?? '';
+  $identifier = trim($_POST['identifier'] ?? '');
   $password = $_POST['password'] ?? '';
 
-  if ($email === '' || $password === '') {
-    $error_message = 'Email dan password wajib diisi.';
-  } else {
-    $stmt = $conn->prepare(
-      "SELECT id, nama, email, password, role
-             FROM users
-             WHERE email = ?
-             LIMIT 1"
-    );
+  // Whitelist kolom agar tidak bisa diinjeksi melalui nama kolom SQL
+  $allowed_columns = [
+    'email'    => 'email',
+    'no_wa'    => 'no_wa',
+  ];
 
-    $stmt->bind_param('s', $email);
+  if (
+    !isset($allowed_columns[$login_type]) ||
+    $identifier === '' ||
+    $password === ''
+  ) {
+    $error_message = 'Lengkapi semua data login.';
+  } else {
+    $column = $allowed_columns[$login_type];
+
+    $sql = "SELECT id, email, password, role
+                FROM users
+                WHERE `$column` = ?
+                LIMIT 1";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('s', $identifier);
     $stmt->execute();
 
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
+    $user = $stmt->get_result()->fetch_assoc();
 
     if ($user && password_verify($password, $user['password'])) {
       session_regenerate_id(true);
 
       $_SESSION['user_id'] = $user['id'];
-      $_SESSION['nama'] = $user['nama'];
       $_SESSION['role'] = $user['role'];
+
+      $stmt->close();
 
       if ($user['role'] === 'Admin') {
         header('Location: admin/dashboard.php');
@@ -49,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       exit;
     }
 
-    $error_message = 'Email atau password yang kamu masukkan salah.';
+    $error_message = 'Identitas atau password yang kamu masukkan salah.';
     $stmt->close();
   }
 }
@@ -71,6 +80,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    .password-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 45px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--fg-soft);
+      font-size: 18px;
+      z-index: 2;
+    }
+
+    .password-toggle i {
+      display: inline-block;
+    }
+  </style>
 </head>
 
 <body>
@@ -206,26 +243,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <div class="field">
-              <label for="c-email">Email</label>
-              <input
-                id="c-email"
-                name="email"
-                type="email"
-                required
-                autocomplete="email"
-                placeholder="nama@email.com"
-                value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+              <label for="login_type">Login menggunakan</label>
+
+              <select name="login_type" id="login_type" required>
+                <option value="email">Email</option>
+                <option value="no_wa">Nomor Whatsapp</option>
+              </select>
             </div>
 
             <div class="field">
-              <label for="c-password">Password</label>
+              <label for="identifier">Identitas akun</label>
+
               <input
-                id="c-password"
-                name="password"
-                type="password"
-                required
-                autocomplete="current-password"
-                placeholder="Masukkan password kamu...">
+                type="text"
+                id="identifier"
+                name="identifier"
+                placeholder="Masukkan email"
+                value="<?= htmlspecialchars($_POST['identifier'] ?? '') ?>"
+                required>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+
+              <div class="password-wrapper">
+                <input
+                  type="password"
+                  name="password"
+                  id="password"
+                  autocomplete="current-password"
+                  placeholder="Masukkan password"
+                  required>
+
+                <button
+                  type="button"
+                  class="password-toggle"
+                  id="togglePassword"
+                  aria-label="Tampilkan password"
+                  aria-pressed="false">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              </div>
             </div>
 
             <button
@@ -290,8 +347,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     </div>
   </footer>
-
   <script src="assets/js/main.js" defer></script>
-</body>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginType = document.getElementById('login_type');
+      const identifier = document.getElementById('identifier');
 
-</html>
+      if (!loginType || !identifier) return;
+
+      const placeholders = {
+        email: 'Masukkan email',
+        no_wa: 'Masukkan nomor WhatsApp',
+      };
+
+      function updatePlaceholder() {
+        identifier.placeholder = placeholders[loginType.value] || 'Masukkan identitas akun';
+      }
+
+      loginType.addEventListener('change', updatePlaceholder);
+      updatePlaceholder();
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      const password = document.getElementById('password');
+      const toggle = document.getElementById('togglePassword');
+      const icon = toggle.querySelector('i');
+
+      toggle.addEventListener('click', function() {
+        const isHidden = password.type === 'password';
+
+        password.type = isHidden ? 'text' : 'password';
+
+        icon.classList.toggle('fa-eye', !isHidden);
+        icon.classList.toggle('fa-eye-slash', isHidden);
+
+        toggle.setAttribute('aria-pressed', String(isHidden));
+        toggle.setAttribute(
+          'aria-label',
+          isHidden ? 'Sembunyikan password' : 'Tampilkan password'
+        );
+      });
+    });
+  </script>
+</body>

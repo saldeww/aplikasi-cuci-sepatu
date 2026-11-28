@@ -281,7 +281,7 @@ if (
         .delivery-option.is-selected {
             border-color: #2563eb;
             background: #eff6ff;
-            box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
         }
 
         .delivery-option-icon {
@@ -363,6 +363,7 @@ if (
             }
         }
     </style>
+
 </head>
 
 <body>
@@ -585,7 +586,7 @@ if (
 
                                         <div class="delivery-option-check">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                                <polyline points="20 6 9 17 4 12"/>
+                                                <polyline points="20 6 9 17 4 12" />
                                             </svg>
                                         </div>
 
@@ -1138,8 +1139,8 @@ if (
             // DELIVERY OPTION CARD PICKER
             // ======================================
 
-            const deliveryOptions   = document.querySelectorAll('.delivery-option');
-            const metodeInput       = document.getElementById('metode_pengantaran');
+            const deliveryOptions = document.querySelectorAll('.delivery-option');
+            const metodeInput = document.getElementById('metode_pengantaran');
 
             deliveryOptions.forEach(function(card) {
                 card.addEventListener('click', function() {
@@ -1165,7 +1166,10 @@ if (
                 if (!metodeInput.value) {
                     e.preventDefault();
                     alert('Silakan pilih metode pengantaran terlebih dahulu.');
-                    document.getElementById('delivery-options').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('delivery-options').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
                 }
             });
 
